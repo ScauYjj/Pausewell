@@ -1,5 +1,7 @@
 # 间歇 Pausewell · v0.3.10 办公 Beta
 
+代码托管于 [GitHub 公开仓库 ScauYjj/Pausewell](https://github.com/ScauYjj/Pausewell)，当前基线为 [v0.3.10-beta](https://github.com/ScauYjj/Pausewell/tree/v0.3.10-beta)。源码公开与产品正式发布分别管理，当前仍处于 Beta 试用。
+
 版本管理从 `v0.3.10-beta` 建立源码基线。版本范围见 `CHANGELOG.md`，分支、构建和发布约定见 `CONTRIBUTING.md`。`artifacts`、数据库、日志和工具缓存不提交；克隆后先按说明构建，不会自动包含本机旧包或个人试用记录。
 
 当前进入基本功能冻结后的办公 Beta。双击 **`开始办公试用.cmd`**，优先使用已安装且哈希一致的 v0.3.10，数据独立保存在 `%LOCALAPPDATA%/PausewellOfficeTrial-v0310`。首次为空白，需要自行创建提醒，之后从同一入口打开会恢复计划。普通安装和现有正常数据库保持原样。
