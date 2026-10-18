@@ -40,12 +40,12 @@ git worktree add --detach ../Pausewell-v0.3.10-beta v0.3.10-beta
 
 Git 回退只影响源码，不恢复本地数据库。数据恢复使用维护工具并单独确认。不要在正在使用的工作区执行 `git clean -fdx`，该命令会删除 Git 故意忽略的本地 SDK、包和试用数据。
 
-连接确认的私有仓库后：
+用户已指定使用公开仓库，目标为 `ScauYjj/Pausewell`。仓库创建并确认归属后：
 
 ```powershell
-git remote add origin <私有仓库地址>
+git remote add origin https://github.com/ScauYjj/Pausewell.git
 git push -u origin main
 git push origin v0.3.10-beta
 ```
 
-推送前核对仓库归属和可见性，不强推已有远程历史。首次提交身份使用已连接 GitHub 账号的 noreply 地址，仅配置在当前仓库。
+推送前核对仓库归属和公开范围，不强推已有远程历史。个人数据、日志和凭据必须持续排除。首次提交身份使用已连接 GitHub 账号的 noreply 地址，仅配置在当前仓库。
