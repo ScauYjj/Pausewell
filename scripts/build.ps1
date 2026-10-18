@@ -1,4 +1,4 @@
-param([string]$OutputDirectory = 'artifacts/Pausewell-ui-v0310')
+﻿param([string]$OutputDirectory = 'artifacts/publish/win-x64')
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $dotnetPath = Join-Path $projectRoot '.tools/dotnet/dotnet.exe'

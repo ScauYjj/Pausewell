@@ -1,6 +1,19 @@
 # Generated SDKs, builds, test evidence and local trial data
 /.tools/
 /artifacts/
+
+# Local history and prototypes; current resources live under src.
+/design/
+/design-qa.md
+/*.cmd
+/docs/*
+!/docs/development.md
+!/docs/screenshots/
+/scripts/*
+!/scripts/build.ps1
+!/scripts/verify.ps1
+!/scripts/build-install-package.ps1
+!/scripts/Manage-Pausewell.ps1
 **/bin/
 **/obj/
 .vs/

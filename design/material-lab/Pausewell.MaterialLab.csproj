@@ -1,4 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
- <PropertyGroup><OutputType>WinExe</OutputType><TargetFramework>net10.0-windows</TargetFramework><UseWPF>true</UseWPF><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings><AssemblyName>Pausewell.MaterialLab</AssemblyName><Version>0.3.2</Version><ApplicationManifest>../../src/Pausewell.Desktop/app.manifest</ApplicationManifest></PropertyGroup>
- <ItemGroup><ProjectReference Include="../../src/Pausewell.Controls/Pausewell.Controls.csproj"/><Compile Include="../component-lab/NativeCapture.cs" Link="Verification/NativeCapture.cs"/><Compile Include="../component-lab/NativeInput.cs" Link="Verification/NativeInput.cs"/><Resource Include="../../src/Pausewell.Desktop/Assets/Icons/*.svg" Link="Assets/%(Filename)%(Extension)"/><Resource Include="../system/v0.3.2/material-tuning.json" Link="Assets/material-tuning.json"/></ItemGroup>
-</Project>

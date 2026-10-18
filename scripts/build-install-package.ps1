@@ -2,10 +2,12 @@
 $ErrorActionPreference='Stop'
 $workspace=Split-Path -Parent $PSScriptRoot
 $dotnet=Join-Path $workspace '.tools/dotnet/dotnet.exe'
-$releaseManifest=Get-Content -LiteralPath (Join-Path $workspace 'artifacts/v0310/release-manifest.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-$program=$releaseManifest.newPackage.path
-if((Get-FileHash -LiteralPath $program).Hash -ne $releaseManifest.newPackage.sha256){throw 'Validated application hash mismatch.'}
-$output=Join-Path $workspace 'artifacts/install-v0310'
+if(-not (Test-Path -LiteralPath $dotnet)){$dotnet=(Get-Command dotnet -ErrorAction Stop).Source}
+& (Join-Path $PSScriptRoot 'build.ps1')
+if($LASTEXITCODE -ne 0){throw 'Current application build failed.'}
+$program=Join-Path $workspace 'artifacts/publish/win-x64/Pausewell.exe'
+$programHash=(Get-FileHash -LiteralPath $program).Hash
+$output=Join-Path $workspace 'artifacts/packages'
 $bundle=Join-Path $output 'Pausewell-0.3.10-win-x64'
 if((Test-Path -LiteralPath $bundle) -and -not $RefreshPackage){throw 'Output already exists. Use -RefreshPackage only for this regenerable package output.'}
 New-Item -ItemType Directory -Path $bundle -Force | Out-Null
@@ -47,11 +49,14 @@ $guide=@'
 当前提供可审查的一键安装脚本，标准安装向导和自动更新尚未交付。
 '@
 [IO.File]::WriteAllText((Join-Path $bundle '使用说明.txt'),$guide,$utf8Bom)
-$compatible=@($releaseManifest.previousPackages | Where-Object {$_.path -like '*Pausewell-ui-v039*'} | ForEach-Object {@{version='0.3.9';sha256=$_.sha256}})
-$compatible+=@{version='0.3.10';sha256=$releaseManifest.newPackage.sha256}
+$compatible=@(
+ @{version='0.3.9';sha256='D12DD90B0F6C6FEDD7560577B6DE9929A293B973EE4501DB9D81F83755076028'},
+ @{version='0.3.10';sha256='778162BFBE886654DFBAA18BC85651C1ECEF3543544003964976A7111DEEE97B'},
+ @{version='0.3.10';sha256=$programHash}
+)
 $files=@(Get-ChildItem -LiteralPath $bundle -File -Recurse | Where-Object {$_.Name -ne 'pausewell-package.json'} | ForEach-Object {@{path=$_.FullName.Substring($bundle.Length+1).Replace('\','/');sha256=(Get-FileHash -LiteralPath $_.FullName).Hash}})
 @{version='0.3.10';files=$files;compatiblePrograms=$compatible} | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $bundle 'pausewell-package.json') -Encoding UTF8
 $archive=Join-Path $output 'Pausewell-0.3.10-win-x64-install.zip'
 Compress-Archive -LiteralPath $bundle -DestinationPath $archive -CompressionLevel Optimal -Force
-@{createdAt=[DateTimeOffset]::UtcNow.ToString('o');appVersion='0.3.10';appSha256=$releaseManifest.newPackage.sha256;archive=$archive;sha256=(Get-FileHash -LiteralPath $archive).Hash;compiler='local .NET SDK';signed=$false;standardInstaller=$false} | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $output 'package-manifest.json') -Encoding UTF8
+@{createdAt=[DateTimeOffset]::UtcNow.ToString('o');appVersion='0.3.10';appSha256=$programHash;archive=$archive;sha256=(Get-FileHash -LiteralPath $archive).Hash;compiler='local .NET SDK';signed=$false;standardInstaller=$false} | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $output 'package-manifest.json') -Encoding UTF8
 Write-Output $archive

@@ -9,7 +9,7 @@ using Pausewell.Core;
 using Pausewell.Storage;
 
 var workspace = Path.GetFullPath(args[0]);
-var releaseRoot = Path.Combine(workspace, "artifacts", "install-v0310");
+var releaseRoot = Path.Combine(workspace, "artifacts", "packages");
 var testRoot = Path.Combine(releaseRoot, "verification", Guid.NewGuid().ToString("N"), "中文 空格路径");
 Directory.CreateDirectory(testRoot);
 var extracted = Path.Combine(testRoot, "解压安装包");
@@ -52,7 +52,9 @@ var success = false;
 try
 {
     var manifest = JsonNode.Parse(File.ReadAllText(Path.Combine(bundle, "pausewell-package.json")))!;
-    Check("ZIP contains pinned previously verified desktop executable", Hash(Path.Combine(bundle, "Pausewell.exe")) == "778162BFBE886654DFBAA18BC85651C1ECEF3543544003964976A7111DEEE97B");
+    var publishedApp = Path.Combine(workspace, "artifacts", "publish", "win-x64", "Pausewell.exe");
+    var publishedHash = Hash(publishedApp);
+    Check("ZIP contains the current locally published desktop executable", Hash(Path.Combine(bundle, "Pausewell.exe")) == publishedHash);
     var probe = Execute(helper, "probe", data);
     Check("Published self-contained maintenance EXE runs directly and missing data remains absent", probe.Code == 0 && !Directory.Exists(data));
     var install = Manage("install");
@@ -67,21 +69,22 @@ try
         Occurrences = [new() { Id = "record", PlanId = "medicine", PlanName = "私有药名", Kind = HabitKind.Medication, DueAt = now.AddMinutes(-10), Status = OccurrenceStatus.Completed, ActualAt = now.AddMinutes(-8), ResolvedAt = now, Corrections = [new(now, OccurrenceStatus.NeedsReview, null, null, OccurrenceStatus.Completed, now.AddMinutes(-8), "已核实的私有原因")] }] };
     Save(state);
     var before = State();
-    // Seed the exact previously tested v0.3.9 into a managed install, without changing either original release.
-    var previousApp = Path.Combine(workspace, "artifacts", "Pausewell-ui-v039", "Pausewell.exe");
+    // A managed current-version fixture keeps this suite reproducible from a fresh clone.
+    // Cross-version v0.3.9 evidence belongs to the historical beta baseline.
+    var previousApp = publishedApp;
     File.Copy(previousApp, Path.Combine(root, "Pausewell.exe"), true);
-    var oldManifest = JsonNode.Parse(manifest.ToJsonString())!; oldManifest["version"] = "0.3.9";
+    var oldManifest = JsonNode.Parse(manifest.ToJsonString())!; oldManifest["version"] = "0.3.10";
     foreach (var entry in oldManifest["files"]!.AsArray()) if (entry!["path"]!.GetValue<string>() == "Pausewell.exe") entry["sha256"] = Hash(previousApp);
     File.WriteAllText(Path.Combine(root, "pausewell-package.json"), oldManifest.ToJsonString());
     var upgrade = Manage("install");
-    Check("v0.3.9 upgrades successfully", upgrade.Code == 0);
+    Check("Managed installation updates successfully", upgrade.Code == 0);
     var upgradeBackup = JsonNode.Parse(upgrade.Output)!["backup"]!.GetValue<string>();
     Check("Upgrade retains exact plans, once schedule, medicine times, actual and confirmed times, corrections and theme", State() == before);
     Check("Upgrade saves verified old executable and consistent database snapshot", Hash(Path.Combine(upgradeBackup, "Pausewell.exe")) == Hash(previousApp) && Execute(helper, "probe", upgradeBackup).Code == 0);
     var newest = Read(); newest.Occurrences.Add(new() { Id = "new-record", PlanId = "once", Status = OccurrenceStatus.Completed, ResolvedAt = now.AddMinutes(1), ActualAt = now.AddMinutes(1) }); Save(newest);
     var withNewRecord = State();
     var rollback = Manage("rollback", upgradeBackup);
-    Check("Program rollback restores exact allowlisted v0.3.9", rollback.Code == 0 && Hash(Path.Combine(root, "Pausewell.exe")) == Hash(previousApp));
+    Check("Program rollback restores exact allowlisted backed-up executable", rollback.Code == 0 && Hash(Path.Combine(root, "Pausewell.exe")) == Hash(previousApp));
     Check("Program rollback keeps latest new execution record", State() == withNewRecord);
     Check("Rolled-back program can upgrade again", Manage("install").Code == 0 && State() == withNewRecord);
     var rejectedRestore = Manage("restore", Path.Combine(upgradeBackup, "pausewell.db"));
@@ -142,8 +145,7 @@ try
     Check("Uninstall retains exact final database and all upgrade/restore backups", State() == finalState && File.Exists(manual) && File.Exists(Path.Combine(upgradeBackup, "Pausewell.exe")) && File.Exists(Path.Combine(recovery, "pausewell.db")));
     Check("Reinstall after uninstall reuses preserved data without rewriting it", Manage("install").Code == 0 && State() == finalState);
     Check("Isolated tests leave real startup, uninstall registration and shortcut unchanged", RegistryValue(@"Software\Microsoft\Windows\CurrentVersion\Run", "Pausewell") == startupBefore && RegistryValue(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\Pausewell", "InstallLocation") == uninstallBefore && (File.Exists(shortcut) ? Hash(shortcut) : "<absent>") == shortcutBefore);
-    var oldReleases = JsonNode.Parse(File.ReadAllText(Path.Combine(workspace, "artifacts", "v0310", "release-manifest.json")))!;
-    Check("All earlier release executables remain unchanged", oldReleases["previousPackages"]!.AsArray().All(p => Hash(p!["path"]!.GetValue<string>()) == p["sha256"]!.GetValue<string>()) && Hash(oldReleases["newPackage"]!["path"]!.GetValue<string>()) == oldReleases["newPackage"]!["sha256"]!.GetValue<string>());
+    Check("Source published executable remains unchanged by installation tests", Hash(publishedApp) == publishedHash);
     success = true;
 }
 finally
