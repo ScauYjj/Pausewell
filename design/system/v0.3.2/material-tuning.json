@@ -1,0 +1,9 @@
+{
+  "version": "0.3.2-material-lab.1",
+  "status": "native-material-tuning-awaiting-user-review",
+  "baseComponentContract": "0.3.1",
+  "navigationTintOpacity": 0.48,
+  "popupTintOpacity": 0.62,
+  "reason": "Initial white overlays and bright ambient produced near-solid white. Lower material tint while retaining a stable text well; component values stay unchanged.",
+  "realtimeRefraction": false
+}

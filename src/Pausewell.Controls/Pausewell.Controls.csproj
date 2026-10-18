@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net10.0-windows</TargetFramework><UseWPF>true</UseWPF><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings><Version>0.3.1</Version></PropertyGroup>
+  <ItemGroup><Resource Include="../../design/system/v0.3.1/assets/*.svg" Link="Assets/%(Filename)%(Extension)"/><Resource Include="../../design/system/v0.3.1/tokens.json" Link="Assets/tokens.json"/><Content Include="../../design/system/v0.3.1/assets/LICENSE.txt" Link="Assets/LICENSE.txt" CopyToOutputDirectory="PreserveNewest"/></ItemGroup>
+</Project>

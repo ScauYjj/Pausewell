@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType><TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF><UseWindowsForms>true</UseWindowsForms><Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings><AssemblyName>Pausewell</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest><Version>0.3.10</Version>
+  </PropertyGroup>
+  <ItemGroup><ProjectReference Include="../Pausewell.Core/Pausewell.Core.csproj" /><ProjectReference Include="../Pausewell.Storage/Pausewell.Storage.csproj" /><ProjectReference Include="../Pausewell.Presentation/Pausewell.Presentation.csproj" /></ItemGroup>
+  <ItemGroup><RuntimeHostConfigurationOption Include="Switch.System.Windows.Controls.Text.UseAdornerForTextboxSelectionRendering" Value="false" /></ItemGroup>
+  <ItemGroup><Compile Include="../../design/component-lab/NativeCapture.cs" Link="Verification/NativeCapture.cs"/><Compile Include="../../design/component-lab/NativeInput.cs" Link="Verification/NativeInput.cs"/></ItemGroup>
+  <ItemGroup><Resource Include="Assets/Themes/*.png"/><Resource Include="Assets/Icons/*.svg"/><Content Include="Assets/Icons/LICENSE.txt" CopyToOutputDirectory="PreserveNewest"/></ItemGroup>
+</Project>

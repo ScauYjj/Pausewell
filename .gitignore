@@ -1,0 +1,50 @@
+# Generated SDKs, builds, test evidence and local trial data
+/.tools/
+/artifacts/
+**/bin/
+**/obj/
+.vs/
+.idea/
+TestResults/
+coverage/
+
+# Databases, backups and diagnostic files anywhere in the tree
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.sqlite3-*
+*.log
+*.jsonl
+**/diagnostics/
+
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pfx
+*.p12
+*.pem
+*.key
+*.user
+*.suo
+*.pubxml.user
+
+# Distributables belong in release assets, not source history
+*.exe
+*.dll
+*.pdb
+*.msi
+*.msix
+*.zip
+*.7z
+*.nupkg
+
+# OS and editor temporary files
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.tmp
+*.bak
