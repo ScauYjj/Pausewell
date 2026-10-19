@@ -17,7 +17,7 @@ internal static class HistorySettingsVerification
         app.Main.Navigate("History");await Task.Delay(100);
         var from=Find<IsoDatePicker>(app.Main,"HistoryFrom");var to=Find<IsoDatePicker>(app.Main,"HistoryTo");
         Check("记录初始日期使用业务时区最近七天",to.SelectedDate==app.Engine.Local(DateTimeOffset.UtcNow).Date&&from.SelectedDate==to.SelectedDate!.Value.AddDays(-6));
-        Check("初始化日期格式不误报筛选已修改",Find<TextBlock>(app.Main,"HistoryFilterHint").Text=="按原计划日期筛选，使用中国标准时间。");
+        Check("初始化日期格式不误报筛选已修改",Find<TextBlock>(app.Main,"HistoryFilterHint").Text=="按原计划日期筛选，使用Windows 系统时间。");
         var originalRows=Rows(app.Main);Check("日期分组后仍可打开独立记录",originalRows.Length==app.Engine.State.Occurrences.Count);
         from.Input!.Focus();from.SetRawInput("2026-02-30");Find<Button>(app.Main,"ApplyHistory").Focus();Click(app.Main,"ApplyHistory");
         await shot(app.Main,"70-history-invalid");Check("无效日期保留输入及上次筛选结果",FieldState.GetHasError(from)&&from.Input!.Text=="2026-02-30"&&Rows(app.Main).SequenceEqual(originalRows));

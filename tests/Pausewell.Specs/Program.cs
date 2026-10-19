@@ -16,9 +16,9 @@ ReminderPlan Habit() => new() { Name = "喝水", Kind = HabitKind.Water, Schedul
 ReminderPlan Drug() => new() { Name = "药物甲", Kind = HabitKind.Medication, Schedule = ScheduleKind.FixedTimes, Times = ["09:30", "13:00", "20:00"], EffectiveAt = origin };
 (ReminderEngine Engine, MemoryStore Store) Boot(ReminderPlan? p = null)
 {
-    var state = new AppState { Running = true, LastScan = origin, Plans = [p ?? Habit()] };
+    var state = new AppState { TimeZoneId = TestZones.China.Id, Running = true, LastScan = origin, Plans = [p ?? Habit()] };
     var store = new MemoryStore { Value = state };
-    return (new(store, origin), store);
+    return (new(store, origin, TestZones.China), store);
 }
 
 Run("完成后间隔：09:37 完成，下次 10:07", () =>
@@ -68,14 +68,14 @@ Run("会议不改变药物时刻和确认状态", () =>
 });
 Run("重启恢复的药物进入待核实，不自动要求补服", () =>
 {
-    var (_, store) = Boot(Drug()); var e = new ReminderEngine(store, origin.AddHours(5));
+    var (_, store) = Boot(Drug()); var e = new ReminderEngine(store, origin.AddHours(5), TestZones.China);
     Assert(e.State.Occurrences.Count == 2 && e.State.Occurrences.All(o => o.Status == OccurrenceStatus.NeedsReview));
     Assert(e.Evaluate(origin.AddHours(5)).Count == 0);
 });
 Run("已完成事项重启后不再次提示", () =>
 {
     var (e, store) = Boot(Drug()); var o = e.Evaluate(origin.AddMinutes(30)).Single(); e.Resolve(o.Id, OccurrenceStatus.Completed, origin.AddMinutes(31));
-    var restart = new ReminderEngine(store, origin.AddMinutes(40)); Assert(restart.State.Occurrences.Single().Status == OccurrenceStatus.Completed);
+    var restart = new ReminderEngine(store, origin.AddMinutes(40), TestZones.China); Assert(restart.State.Occurrences.Single().Status == OccurrenceStatus.Completed);
     Assert(restart.Evaluate(origin.AddMinutes(40)).Count == 0);
 });
 Run("不确定服药不会写入已服用", () =>
@@ -133,7 +133,7 @@ Run("保存失败不提交完成状态或下次时间", () =>
 });
 Run("超过 30 天恢复明确提示历史缺口", () =>
 {
-    var (_, store) = Boot(Drug()); var e = new ReminderEngine(store, origin.AddDays(40));
+    var (_, store) = Boot(Drug()); var e = new ReminderEngine(store, origin.AddDays(40), TestZones.China);
     Assert(e.State.RecoveryNotice.Contains("30 天") && e.State.Occurrences.All(o => o.Status == OccurrenceStatus.NeedsReview));
 });
 Run("暂停不完成事项，再次开启重新安排普通间隔", () =>
@@ -171,8 +171,8 @@ Run("SQLite 实际事务保存、重开和完整性检查", () =>
     var path = Path.Combine(dir, "state.db"); var p = Drug(); p.Name = "中文药物 ' 引号测试";
     using (var store = new SqliteStateStore(path))
     {
-        store.Save(new AppState { Running = true, LastScan = origin, Plans = [p] });
-        var e = new ReminderEngine(store, origin); var o = e.Evaluate(origin.AddMinutes(30)).Single(); e.Resolve(o.Id, OccurrenceStatus.Completed, origin.AddMinutes(31));
+        store.Save(new AppState { TimeZoneId = TestZones.China.Id, Running = true, LastScan = origin, Plans = [p] });
+        var e = new ReminderEngine(store, origin, TestZones.China); var o = e.Evaluate(origin.AddMinutes(30)).Single(); e.Resolve(o.Id, OccurrenceStatus.Completed, origin.AddMinutes(31));
         Assert(store.IntegrityCheck() == "ok");
     }
     using (var reopened = new SqliteStateStore(path)) { var s = reopened.Load()!; Assert(s.Plans.Single().Name == p.Name && s.Occurrences.Single().Status == OccurrenceStatus.Completed); }
@@ -218,8 +218,8 @@ Run("换肤只改变设置，保存失败保持原主题", () =>
 });
 Run("schema 1 兼容，主题与记录不丢失", () =>
 {
-    var store=new MemoryStore { Value=new AppState { SchemaVersion=1, LastScan=origin, Plans=[Habit()] } };
-    var e=new ReminderEngine(store,origin); Assert(e.State.SchemaVersion==4 && e.State.Preferences.Theme=="champagne" && e.State.Plans.Count==1);
+    var store=new MemoryStore { Value=new AppState { TimeZoneId = TestZones.China.Id, SchemaVersion=1, LastScan=origin, Plans=[Habit()] } };
+    var e=new ReminderEngine(store,origin, TestZones.China); Assert(e.State.SchemaVersion==4 && e.State.Preferences.Theme=="champagne" && e.State.Plans.Count==1);
     e.ResumeOnLaunch(origin); Assert(e.State.Running);
 });
 Run("停用一项不重置其他项计时", () =>
@@ -234,21 +234,22 @@ Run("如厕当前无需独立记录，不能用于药物", () =>
 
 Run("首次保存与启动在同一事务中", () =>
 {
-    var store=new MemoryStore();var e=new ReminderEngine(store,origin);e.SavePlan(Habit(),origin,startIfNeeded:true);Assert(e.State.Running&&e.State.Plans.Count==1&&store.Load()!.Running);
-    var failedStore=new MemoryStore { Fail=true };var failedEngine=new ReminderEngine(failedStore,origin);try{failedEngine.SavePlan(Habit(),origin,startIfNeeded:true);throw new Exception("未报告失败");}catch(IOException){}Assert(!failedEngine.State.Running&&failedEngine.State.Plans.Count==0);
+    var store=new MemoryStore();var e=new ReminderEngine(store,origin, TestZones.China);e.SavePlan(Habit(),origin,startIfNeeded:true);Assert(e.State.Running&&e.State.Plans.Count==1&&store.Load()!.Running);
+    var failedStore=new MemoryStore { Fail=true };var failedEngine=new ReminderEngine(failedStore,origin, TestZones.China);try{failedEngine.SavePlan(Habit(),origin,startIfNeeded:true);throw new Exception("未报告失败");}catch(IOException){}Assert(!failedEngine.State.Running&&failedEngine.State.Plans.Count==0);
 });
 Run("待核实药物明确延期后再通知，原计划不变", () =>
 {
-    var (_,store)=Boot(Drug());var e=new ReminderEngine(store,origin.AddMinutes(40));var o=e.State.Occurrences.Single();e.Defer([o.Id],origin.AddMinutes(40));Assert(e.Evaluate(origin.AddMinutes(44)).Count==0);Assert(e.Evaluate(origin.AddMinutes(45)).Single().DueAt==origin.AddMinutes(30));
+    var (_,store)=Boot(Drug());var e=new ReminderEngine(store,origin.AddMinutes(40), TestZones.China);var o=e.State.Occurrences.Single();e.Defer([o.Id],origin.AddMinutes(40));Assert(e.Evaluate(origin.AddMinutes(44)).Count==0);Assert(e.Evaluate(origin.AddMinutes(45)).Single().DueAt==origin.AddMinutes(30));
 });
 
 Run("SQLite 旧版快照升级前备份并保留原计划", () =>
 {
-    var dir=Path.Combine(Path.GetTempPath(),"Pausewell.Specs",Guid.NewGuid().ToString("N"));Directory.CreateDirectory(dir);using var store=new SqliteStateStore(Path.Combine(dir,"old.db"));store.Save(new(){SchemaVersion=1,LastScan=origin,Plans=[Habit()]});var backup=store.Backup();var e=new ReminderEngine(store,origin);e.SavePreferences(new(){Theme="copper"},false,false,origin);Assert(store.Load()!.SchemaVersion==4&&store.Load()!.Plans.Count==1);using var old=new SqliteStateStore(backup);Assert(old.Load()!.SchemaVersion==1&&old.IntegrityCheck()=="ok");
+    var dir=Path.Combine(Path.GetTempPath(),"Pausewell.Specs",Guid.NewGuid().ToString("N"));Directory.CreateDirectory(dir);using var store=new SqliteStateStore(Path.Combine(dir,"old.db"));store.Save(new(){TimeZoneId=TestZones.China.Id,SchemaVersion=1,LastScan=origin,Plans=[Habit()]});var backup=store.Backup();var e=new ReminderEngine(store,origin, TestZones.China);e.SavePreferences(new(){Theme="copper"},false,false,origin);Assert(store.Load()!.SchemaVersion==4&&store.Load()!.Plans.Count==1);using var old=new SqliteStateStore(backup);Assert(old.Load()!.SchemaVersion==1&&old.IntegrityCheck()=="ok");
 });
 
 OnceSpecs.Run(Run);
 LifecycleSpecs.Run(Run);
+TimeZoneSpecs.Run(Run);
 
 var output = args.FirstOrDefault() ?? Path.Combine(Environment.CurrentDirectory, "artifacts", "rules-test-results.json");
 Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(output))!);

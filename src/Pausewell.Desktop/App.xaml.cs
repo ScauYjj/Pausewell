@@ -26,7 +26,8 @@ public partial class App : System.Windows.Application
         try
         {
             var store = new SqliteStateStore(Path.Combine(dataDir, "pausewell.db"));
-            if(store.Load()?.SchemaVersion is 1 or 2 or 3)store.Backup();
+            var saved = store.Load();
+            if(saved != null && (saved.SchemaVersion is 1 or 2 or 3 || saved.TimeZoneId != TimeZoneInfo.Local.Id || saved.TimeZoneRules.Length > 0 && saved.TimeZoneRules != TimeZoneInfo.Local.ToSerializedString()))store.Backup();
             if(e.Args.Contains("--demo")&&store.Load()==null)
             {
                 var now=DateTimeOffset.UtcNow;

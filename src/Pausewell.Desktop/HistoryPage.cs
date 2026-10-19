@@ -31,7 +31,7 @@ public partial class MainWindow
         {var field=PageUi.Field(label,input);field.Width=184;field.Margin=new(0,0,12,12);filters.Children.Add(field);}
         header.Children.Add(filters);
         var operations=new DockPanel();var buttons=TaskUi.Actions(Ui.Button("最近 7 天",ResetHistoryFilters,id:"ResetHistory"),Ui.Button("应用筛选",()=>ApplyHistoryFilters(),true,"ApplyHistory"));DockPanel.SetDock(buttons,Dock.Right);operations.Children.Add(buttons);
-        _historyFilterHint=Ui.Text("按原计划日期筛选，使用中国标准时间。",12,brush:"Muted",margin:new(0,6,12,0));AutomationProperties.SetAutomationId(_historyFilterHint,"HistoryFilterHint");operations.Children.Add(_historyFilterHint);header.Children.Add(operations);
+        _historyFilterHint=Ui.Text("按原计划日期筛选，使用Windows 系统时间。",12,brush:"Muted",margin:new(0,6,12,0));AutomationProperties.SetAutomationId(_historyFilterHint,"HistoryFilterHint");operations.Children.Add(_historyFilterHint);header.Children.Add(operations);
         header.Margin=new(0,0,0,20);DockPanel.SetDock(header,Dock.Top);root.Children.Add(header);
         _historyRows=new StackPanel();root.Children.Add(Ui.Scroll(_historyRows));
         _historyKindInput.SelectionChanged+=(_,_)=>MarkHistoryDirty();_historyStatusInput.SelectionChanged+=(_,_)=>MarkHistoryDirty();
@@ -43,7 +43,7 @@ public partial class MainWindow
         if(_historyBuilding||_historyFilterHint==null||_historyFromInput==null||_historyToInput==null)return;
         var unchanged=_historyKindInput!.SelectedIndex==(_historyKind==null?0:(int)_historyKind+1)&&_historyStatusInput!.SelectedIndex==Array.IndexOf(HistoryStates,_historyStatus)
             &&(_historyFromInput.Input?.Text??_historyFromInput.Text)==_historyFrom.ToString("yyyy-MM-dd")&&(_historyToInput.Input?.Text??_historyToInput.Text)==_historyTo.ToString("yyyy-MM-dd");
-        _historyFilterHint.Text=unchanged?"按原计划日期筛选，使用中国标准时间。":"列表保留上次结果，点击“应用筛选”更新修改后的条件。";
+        _historyFilterHint.Text=unchanged?"按原计划日期筛选，使用Windows 系统时间。":"列表保留上次结果，点击“应用筛选”更新修改后的条件。";
     }
     private bool ApplyHistoryFilters()
     {
@@ -53,7 +53,7 @@ public partial class MainWindow
         if(_historyFromInput.SelectedDate>_historyToInput.SelectedDate){FieldState.SetError(_historyToInput,"结束日期不能早于开始日期。");_historyFilterHint!.Text="日期范围未生效，列表保留上次结果。";return false;}
         _historyFrom=_historyFromInput.SelectedDate!.Value;_historyTo=_historyToInput.SelectedDate!.Value;
         _historyKind=_historyKindInput.SelectedIndex==0?null:(HabitKind)(_historyKindInput.SelectedIndex-1);_historyStatus=HistoryStates[_historyStatusInput.SelectedIndex];
-        _historyFilterHint!.Text="按原计划日期筛选，使用中国标准时间。";RefreshHistoryRows();return true;
+        _historyFilterHint!.Text="按原计划日期筛选，使用Windows 系统时间。";RefreshHistoryRows();return true;
     }
     private void ResetHistoryFilters()
     {

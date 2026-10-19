@@ -24,6 +24,7 @@ public sealed class DesktopController : IDisposable
     private bool _locked=>_sessionLocked||_suspended||Engine.State.IsAway;
     private DateTimeOffset _nextDiagnosticSample=DateTimeOffset.MinValue;
     private bool _diagnosticStarted;
+    private int _timeZoneTicks;
     public bool SchedulingFaulted=>_faulted;
     public string SchedulingFailure {get;private set;}="";
     private QueueWindow? _queue;
@@ -49,6 +50,7 @@ public sealed class DesktopController : IDisposable
         _tray.BalloonTipClicked += (_, _) => Dispatch(ShowMain);
         SystemEvents.SessionSwitch += SessionChanged;
         SystemEvents.PowerModeChanged += PowerChanged;
+        SystemEvents.TimeChanged += TimeChanged;
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _timer.Tick += (_, _) => Tick();
         _timer.Start();
@@ -94,6 +96,7 @@ public sealed class DesktopController : IDisposable
 
     private void Tick()
     {
+        if (++_timeZoneTicks >= 30) { _timeZoneTicks = 0; RefreshSystemTimeZone(); }
         Main.RefreshClock();
         if(Diagnostics.Enabled&&DateTimeOffset.UtcNow>=_nextDiagnosticSample){_nextDiagnosticSample=DateTimeOffset.UtcNow.AddMinutes(1);Diagnostics.Sample(Engine.State.Plans.Count,Engine.State.Occurrences.Count,_reminders.Count);}
         if (_locked || _faulted || Quitting) return;
@@ -125,6 +128,20 @@ public sealed class DesktopController : IDisposable
             }
         }
         catch (Exception ex) { _faulted = true; SchedulingFailure=TaskUi.Failure(ex); Diagnostics.SchedulerFault(ex);Main.RefreshClock(); }
+    }
+
+    private void TimeChanged(object? sender, EventArgs args) => Dispatch(RefreshSystemTimeZone);
+    private void RefreshSystemTimeZone()
+    {
+        if (Quitting) return;
+        try
+        {
+            TimeZoneInfo.ClearCachedData();
+            if (Engine.SynchronizeTimeZone(TimeZoneInfo.Local, DateTimeOffset.UtcNow))
+            { CloseReminders(); Main.RefreshIfChanged(); }
+            Main.RefreshClock();
+        }
+        catch (Exception ex) { _faulted = true; SchedulingFailure = TaskUi.Failure(ex); Main.RefreshClock(); }
     }
 
     public bool RetryScheduling()
@@ -208,7 +225,7 @@ public sealed class DesktopController : IDisposable
     }
     public void Dispose()
     {
-        _timer.Stop(); SystemEvents.SessionSwitch -= SessionChanged; SystemEvents.PowerModeChanged -= PowerChanged;
+        _timer.Stop(); SystemEvents.SessionSwitch -= SessionChanged; SystemEvents.PowerModeChanged -= PowerChanged; SystemEvents.TimeChanged -= TimeChanged;
         _tray.Visible = false; _tray.Dispose(); _trayIcon.Dispose(); Store.Dispose();
     }
 }

@@ -9,7 +9,7 @@ static class LifecycleSpecs
         ReminderPlan Todo(DateTimeOffset? end = null) => new() { Name = "交材料", Kind = HabitKind.Other, Schedule = ScheduleKind.Once, OnceAt = at.AddMinutes(10), ValidUntil = end };
         (ReminderEngine e, Store s) Boot(params ReminderPlan[] plans)
         {
-            var s = new Store(); var e = new ReminderEngine(s, at);
+            var s = new Store(); var e = new ReminderEngine(s, at, TestZones.China);
             foreach (var p in plans) e.SavePlan(p, at, true);
             return (e, s);
         }
@@ -17,7 +17,7 @@ static class LifecycleSpecs
         run("跨周重开不补办旧习惯，仍有效待办保留且不自动全屏", () =>
         {
             var (e, s) = Boot(Habit(), Todo()); e.Evaluate(at.AddMinutes(30)); e.Exit(at.AddMinutes(31));
-            var next = at.AddDays(3); var r = new ReminderEngine(s, next);
+            var next = at.AddDays(3); var r = new ReminderEngine(s, next, TestZones.China);
             Check(r.State.Occurrences.Single(o => o.Kind == HabitKind.Activity).Status == OccurrenceStatus.Expired);
             Check(r.State.Occurrences.Single(o => o.Kind == HabitKind.Other).Status == OccurrenceStatus.Pending);
             Check(r.State.Plans.Single(p => p.IsHabit).NextDue == next.AddMinutes(30));
@@ -32,7 +32,7 @@ static class LifecycleSpecs
         run("短崩溃恢复不延后未来时刻", () =>
         {
             var (e, s) = Boot(Habit()); e.Evaluate(at.AddMinutes(10));
-            var r = new ReminderEngine(s, at.AddMinutes(11)); Check(r.State.Plans.Single().NextDue == at.AddMinutes(30));
+            var r = new ReminderEngine(s, at.AddMinutes(11), TestZones.China); Check(r.State.Plans.Single().NextDue == at.AddMinutes(30));
         });
         run("主动离开无补办，会议到点也不越过离开状态", () =>
         {
@@ -90,7 +90,7 @@ static class LifecycleSpecs
             var (e, s) = Boot(p); e.Evaluate(at.AddMinutes(10)); e.DeletePlan(p.Id, at.AddMinutes(11)); e.DeletePlan(p.Id, at.AddMinutes(11));
             Check(e.State.Plans.Count == 0 && e.State.DeletedPlans.Count == 1 && e.State.Occurrences.Count == 1);
             Check(e.State.Occurrences.Single().Status == (kind == HabitKind.Medication ? OccurrenceStatus.NeedsReview : OccurrenceStatus.Cancelled));
-            Check(new ReminderEngine(s, at.AddDays(1)).Evaluate(at.AddDays(1)).Count == 0);
+            Check(new ReminderEngine(s, at.AddDays(1), TestZones.China).Evaluate(at.AddDays(1)).Count == 0);
             try { e.SavePlan(p, at.AddMinutes(12)); throw new Exception("旧表单复活了已删除计划"); } catch (InvalidOperationException) { }
         });
         run("删除失败原子保留计划和待办", () =>
@@ -114,8 +114,8 @@ static class LifecycleSpecs
         });
         run("旧自定义保守迁为待办，已完成历史不丢", () =>
         {
-            var p = Todo(); var s = new Store { Value = new() { SchemaVersion = 3, LastScan = at, Plans = [p], Occurrences = [new() { PlanId = p.Id, Kind = HabitKind.Other, Status = OccurrenceStatus.Completed }] } };
-            var e = new ReminderEngine(s, at); Check(e.State.SchemaVersion == 4 && !e.State.Plans.Single().IsHabit && e.State.Occurrences.Single().Status == OccurrenceStatus.Completed);
+            var p = Todo(); var s = new Store { Value = new() { TimeZoneId = TestZones.China.Id, SchemaVersion = 3, LastScan = at, Plans = [p], Occurrences = [new() { PlanId = p.Id, Kind = HabitKind.Other, Status = OccurrenceStatus.Completed }] } };
+            var e = new ReminderEngine(s, at, TestZones.China); Check(e.State.SchemaVersion == 4 && !e.State.Plans.Single().IsHabit && e.State.Occurrences.Single().Status == OccurrenceStatus.Completed);
         });
         run("恢复和补列在一个保存事务里，不发布中间结果", () =>
         {
@@ -131,7 +131,7 @@ static class LifecycleSpecs
         run("已结束日期的习惯计划不阻断软件启动", () =>
         {
             var p=Habit();p.EndsOn=DateOnly.FromDateTime(at.DateTime);var(e,s)=Boot(p);e.Exit(at.AddHours(1));
-            var r=new ReminderEngine(s,at.AddDays(3));Check(r.Evaluate(at.AddDays(3)).Count==0);
+            var r=new ReminderEngine(s,at.AddDays(3), TestZones.China);Check(r.Evaluate(at.AddDays(3)).Count==0);
         });
     }
     private sealed class Store : IStateStore

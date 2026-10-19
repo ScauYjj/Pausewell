@@ -87,7 +87,8 @@ public sealed record AuditEntry(DateTimeOffset At, string Action, string Detail,
 public sealed class AppState
 {
     public int SchemaVersion { get; set; } = 4;
-    public string TimeZoneId { get; set; } = "China Standard Time";
+    public string TimeZoneId { get; set; } = TimeZoneInfo.Local.Id;
+    public string TimeZoneRules { get; set; } = "";
     public bool Running { get; set; }
     public bool CoverAllScreens { get; set; }
     public bool SoundEnabled { get; set; }

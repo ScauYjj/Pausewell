@@ -6,16 +6,21 @@ public sealed partial class ReminderEngine
 {
     private readonly IStateStore _store;
     private DateTimeOffset _scan;
+    private TimeZoneInfo _zone;
     public AppState State { get; private set; }
-    public TimeZoneInfo Zone => TimeZoneInfo.FindSystemTimeZoneById(State.TimeZoneId);
+    public TimeZoneInfo Zone => _zone;
 
-    public ReminderEngine(IStateStore store, DateTimeOffset now)
+    public ReminderEngine(IStateStore store, DateTimeOffset now, TimeZoneInfo? timeZone = null)
     {
         _store = store;
-        State = store.Load() ?? NewState(now);
+        _zone = timeZone ?? TimeZoneInfo.Local;
+        var loaded = store.Load();
+        State = loaded ?? NewState(now);
+        if (loaded == null) { State.TimeZoneId = _zone.Id; State.TimeZoneRules = _zone.ToSerializedString(); }
         if (State.SchemaVersion is < 1 or > 4) throw new InvalidOperationException("数据版本不兼容，未覆盖原文件。");
         Migrate();
         _scan = State.LastScan == default ? now : State.LastScan;
+        SynchronizeTimeZone(_zone, now);
         if (State.Running) Recover(now, RecoveryReason.Launch);
     }
 
@@ -47,7 +52,10 @@ public sealed partial class ReminderEngine
     public DateTimeOffset At(DateOnly date, TimeOnly time)
     {
         var wall = date.ToDateTime(time, DateTimeKind.Unspecified);
-        return new DateTimeOffset(wall, Zone.GetUtcOffset(wall));
+        // A skipped DST minute moves to the first valid minute; a repeated minute fires once.
+        while (Zone.IsInvalidTime(wall)) wall = wall.AddMinutes(1);
+        var offset = Zone.IsAmbiguousTime(wall) ? Zone.GetAmbiguousTimeOffsets(wall).Max() : Zone.GetUtcOffset(wall);
+        return new DateTimeOffset(wall, offset);
     }
 
     public void Validate(ReminderPlan p)
@@ -255,8 +263,8 @@ public sealed partial class ReminderEngine
                     {
                         var due = At(date, ParseTime(time));
                         if (p.ValidUntil <= due) continue;
-                        var id = $"{p.Id}:{p.Revision}:{date:yyyy-MM-dd}:{time}";
-                        if (due < from || due > now || due <= p.EffectiveAt || !InWindow(p, due) || s.Occurrences.Any(o => o.Id == id)) continue;
+                        var id = $"{p.Id}:{p.Revision}:{date:yyyy-MM-dd}:{time}:{due.UtcTicks}";
+                        if (due < from || due > now || due <= p.EffectiveAt || !InWindow(p, due) || s.Occurrences.Any(o => o.Id == id || o.PlanId == p.Id && o.Revision == p.Revision && o.DueAt == due)) continue;
                         var item = Create(p, due); item.Id = id;
                         if ((recovery || due < now - ShortInterruption) && p.Kind == HabitKind.Medication) item.Status = OccurrenceStatus.NeedsReview;
                         if (recovery || !p.IsHabit && due < now - ShortInterruption) { item.RecoveryOnly = true; item.SuppressStrong = true; }

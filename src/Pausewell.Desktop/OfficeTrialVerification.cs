@@ -38,6 +38,10 @@ internal static class OfficeTrialVerification
         var editable=new RecordWindow(app,record.Id){Owner=app.Main};editable.Show();Click(editable,"CorrectRecord");editable.UpdateLayout();editable.StatusInput!.SelectedIndex=0;Toggle(editable.UnknownTime!);
         Check("辅助功能改变更正中的未知时间同步输入状态",editable.ActualDate!.IsEnabled==!(editable.UnknownTime!.IsChecked==true)&&editable.ActualTime!.IsEnabled==editable.ActualDate.IsEnabled);Click(editable,"CancelCorrection");editable.Close();
 
+        // Future background habits can legitimately fire during these two-second lock fixtures.
+        // Pause those fixtures so the assertions observe only the once-only reminder under test.
+        var backgroundHabits=app.Engine.State.Plans.Where(p=>p.Enabled&&p.IsHabit).Select(p=>p.Id).ToArray();
+        foreach(var id in backgroundHabits)app.Engine.SetEnabled(id,false,DateTimeOffset.UtcNow);
         foreach(var power in new[]{false,true})
         {
             var now=DateTimeOffset.UtcNow;var plan=new ReminderPlan{Name=power?"合成电源恢复验证":"合成会话恢复验证",Kind=HabitKind.Other,Schedule=ScheduleKind.Once,OnceAt=now.AddSeconds(2),Style=ReminderStyle.Card};app.Engine.SavePlan(plan,now);
@@ -52,6 +56,7 @@ internal static class OfficeTrialVerification
         Check("合成睡眠恢复不会解除仍然存在的锁屏状态",app.OpenReminders.Count==0&&!app.Engine.State.Occurrences.Any(o=>o.PlanId==overlap.Id));
         app.HandleSession(SessionSwitchReason.SessionUnlock,true);await Task.Delay(150);Check("重叠系统返回不自动补弹旧待办",app.OpenReminders.Count==0);
         var resumed=app.OpenItems([app.Engine.State.Occurrences.Single(o=>o.PlanId==overlap.Id)]);Check("合成锁屏和睡眠都结束后恢复同一原时刻",app.Engine.State.Occurrences.Single(o=>o.PlanId==overlap.Id).DueAt==overlap.OnceAt);Click(resumed,"Complete_Other");
+        foreach(var id in backgroundHabits)app.Engine.SetEnabled(id,true,DateTimeOffset.UtcNow);
         Check("试用诊断启用并包含明确标注的合成信号",app.Diagnostics.Enabled&&File.ReadLines(app.Diagnostics.CurrentPath).Select(line=>JsonDocument.Parse(line)).Count(d=>d.RootElement.GetProperty("fields").TryGetProperty("origin",out var origin)&&origin.GetString()=="verification")==8);
         using(var held=new FileStream(app.Diagnostics.CurrentPath,FileMode.Open,FileAccess.ReadWrite,FileShare.None))
         {

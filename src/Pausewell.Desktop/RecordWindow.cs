@@ -99,6 +99,6 @@ public sealed class RecordWindow : MaterialWindow
                 history.Children.Add(Ui.Text("原因："+change.Reason,14,margin:new(0,12,0,0)));var card=Ui.Panel(history,new(16));card.Margin=new(0,0,0,12);body.Children.Add(card);
             }
         }
-        SetBody(TaskUi.Layout(_editing?"更正本次记录":_readOnly?"只读记录详情":"记录详情",_editing?"按实际情况修改，原计划时间始终保留。":_readOnly?"仅供查阅，不会修改当前提醒或执行记录。":"时间使用中国标准时间，实际执行与确认分别保存。",body,footer));
+        SetBody(TaskUi.Layout(_editing?"更正本次记录":_readOnly?"只读记录详情":"记录详情",_editing?"按实际情况修改，原计划时间始终保留。":_readOnly?"仅供查阅，不会修改当前提醒或执行记录。":"时间使用Windows 系统时间，实际执行与确认分别保存。",body,footer));
     }
 }

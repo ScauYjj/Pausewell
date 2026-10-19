@@ -23,6 +23,6 @@ public sealed class ReminderHistoryWindow : MaterialWindow
             }
         }
         var footer=new StackPanel();footer.Children.Add(Ui.Text("查阅不会确认、延期或更正任何事项。关闭后返回当前提醒。",12,brush:"Muted",margin:new(0,0,0,8)));footer.Children.Add(TaskUi.Actions(Ui.Button("返回当前提醒",Close,id:"ReturnToReminder")));
-        SetBody(TaskUi.Layout("查阅执行记录","仅查看当前计划的记录，时间使用中国标准时间。",body,footer));PreviewKeyDown+=(_,e)=>{if(e.Key==Key.Escape){Close();e.Handled=true;}};
+        SetBody(TaskUi.Layout("查阅执行记录","仅查看当前计划的记录，时间使用Windows 系统时间。",body,footer));PreviewKeyDown+=(_,e)=>{if(e.Key==Key.Escape){Close();e.Handled=true;}};
     }
 }

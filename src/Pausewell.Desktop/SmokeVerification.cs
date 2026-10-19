@@ -25,7 +25,7 @@ public static class SmokeVerification
         async Task Shot(Window w,string name){await Task.Delay(150);Capture((FrameworkElement)w.Content,Path.Combine(directory,name+".png"));}
         try
         {
-            await Task.Delay(500);Verify("首次无自动建立的计划，也不启动空调度",app.Engine.State.Plans.Count==0&&!app.Engine.State.Running);await Shot(app.Main,"01-first-run");
+            await Task.Delay(500);Verify("显示与调度使用 Windows 实际时区规则",app.Engine.Zone.Id==TimeZoneInfo.Local.Id&&app.Engine.Zone.HasSameRules(TimeZoneInfo.Local));Verify("首次无自动建立的计划，也不启动空调度",app.Engine.State.Plans.Count==0&&!app.Engine.State.Running);await Shot(app.Main,"01-first-run");
             var editor=new PlanEditor(app,null){Owner=app.Main};editor.Show();await Task.Delay(200);Verify("初次表单不提前报错",editor.ValidationMessage.Length==0);editor.NameInput.Text="";Click(editor.SaveButton);Verify("无效提交不保存且解释原因",!editor.Saved&&editor.ValidationMessage.Length>0&&app.Engine.State.Plans.Count==0);editor.NameInput.Text="喝水";editor.IntervalInput.Text="30";Verify("修正有效字段后清除过期校验提示",editor.ValidationMessage.Length==0);await Shot(editor,"02-editor");Click(editor.SaveButton);Verify("首次保存开始提醒并持久化",editor.Saved&&app.Engine.State.Running&&app.Store.Load()!.Plans.Count==1);
             var water=app.Engine.State.Plans.Single();var nextWater=water.NextDue;
             var activityEditor=new PlanEditor(app,null,HabitKind.Activity){Owner=app.Main};activityEditor.Show();activityEditor.NameInput.Text="起来活动";activityEditor.IntervalInput.Text="45";Click(activityEditor.SaveButton);Verify("新增不重置既有普通计划",app.Engine.State.Plans.Single(p=>p.Id==water.Id).NextDue==nextWater);

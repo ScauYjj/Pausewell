@@ -68,12 +68,12 @@ public partial class MainWindow : Window
             var next=s.Plans.Where(p=>p.Enabled&&p.IsHabit).Select(p=>(Plan:p,At:Next(p,now))).Where(x=>x.At!=null).OrderBy(x=>x.At).FirstOrDefault();
             if(s.PauseUntil>now){_nextName.Text="恢复后重新计时";_nextTime!.Text=e.Local(s.PauseUntil.Value).ToString("HH:mm");_nextHint!.Text="普通间隔从恢复时刻计算，固定时刻保留原计划。";}
             else if(pending!=null){SetNextIcon(pending.Kind);_nextName.Text=pending.PlanName;_nextTime!.Text="待处理";_nextHint!.Text=$"原计划 {e.Local(pending.DueAt):HH:mm} · "+(s.MeetingUntil>now?"会后汇总处理":pending.Status==OccurrenceStatus.Deferred?$"{e.Local(pending.NotifyAfter):HH:mm} 再提醒":"完成或延期后会保留本次结果。");}
-            else if(next.Plan!=null){SetNextIcon(next.Plan.Kind);_nextName.Text=next.Plan.Name;_nextTime!.Text=e.Local(next.At!.Value).ToString(next.At.Value.ToOffset(e.Local(now).Offset).Date==e.Local(now).Date?"HH:mm":"MM-dd HH:mm");_nextHint!.Text=$"还有 {Math.Max(1,Math.Ceiling((next.At.Value-now).TotalMinutes))} 分钟 · "+(next.Plan.Schedule==ScheduleKind.Interval?$"确认完成后再等 {next.Plan.IntervalMinutes} 分钟。":next.Plan.Schedule==ScheduleKind.Once?"仅一次，确认后不再循环。":"每天固定时刻，晚确认不平移后续计划。");}
+            else if(next.Plan!=null){SetNextIcon(next.Plan.Kind);_nextName.Text=next.Plan.Name;_nextTime!.Text=e.Local(next.At!.Value).ToString(e.Local(next.At.Value).Date==e.Local(now).Date?"HH:mm":"MM-dd HH:mm");_nextHint!.Text=$"还有 {Math.Max(1,Math.Ceiling((next.At.Value-now).TotalMinutes))} 分钟 · "+(next.Plan.Schedule==ScheduleKind.Interval?$"确认完成后再等 {next.Plan.IntervalMinutes} 分钟。":next.Plan.Schedule==ScheduleKind.Once?"仅一次，确认后不再循环。":"每天固定时刻，晚确认不平移后续计划。");}
             else{_nextName.Text="暂无普通提醒";_nextTime!.Text="";_nextHint!.Text="新增一个提醒，或开启已有事项。";}
         }
         if(_nextTime!=null)_nextTime.FontSize=_nextTime.Text.Contains(" ")?24:34;
         if(_app.SchedulingFaulted){if(_status!=null)_status.Text="提醒调度暂缓";if(_modeText!=null)_modeText.Text="已启用的计划和待办保留，点击上方“重试调度”恢复。";}
-        RuntimeLabel.Text=(_app.IsIsolated?"独立试用数据 · 真实提醒可触发 · ":"")+(s.Preferences.CloseToTray?"关闭窗口后继续在托盘运行；退出应用后不再提醒。":"关闭窗口将退出应用，退出后不再提醒。");
+        RuntimeLabel.Text=$"系统时间 {e.Local(now):HH:mm} · "+(_app.IsIsolated?"独立试用数据 · 真实提醒可触发 · ":"")+(s.Preferences.CloseToTray?"关闭窗口后继续在托盘运行；退出应用后不再提醒。":"关闭窗口将退出应用，退出后不再提醒。");
     }
     private void SetNextIcon(HabitKind kind){if(_nextIcon!=null&&!Equals(_nextIcon.Tag,kind)){_nextIcon.Tag=kind;_nextIcon.Child=Ui.KindIcon(kind,34);}}
     private DateTimeOffset? Next(ReminderPlan p,DateTimeOffset now)
