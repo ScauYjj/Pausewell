@@ -12,4 +12,33 @@
  <Style x:Key="NavigationButton" TargetType="Button" BasedOn="{StaticResource ButtonBase}">
   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border x:Name="Face" CornerRadius="24" Padding="{TemplateBinding Padding}" Background="Transparent"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><ControlTemplate.Triggers><MultiTrigger><MultiTrigger.Conditions><Condition Property="IsMouseOver" Value="True"/><Condition Property="IsEnabled" Value="True"/></MultiTrigger.Conditions><Setter TargetName="Face" Property="Background" Value="{DynamicResource Color.fieldHover}"/></MultiTrigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
  </Style>
+ <Style x:Key="RowActionButton" TargetType="Button" BasedOn="{StaticResource ButtonBase}">
+  <Setter Property="MinWidth" Value="64"/><Setter Property="MinHeight" Value="36"/><Setter Property="Height" Value="36"/>
+  <Setter Property="FontSize" Value="13"/><Setter Property="Padding" Value="8,6"/>
+  <Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="{DynamicResource Color.textSecondary}"/>
+  <Setter Property="BorderThickness" Value="0"/>
+  <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+   <Border CornerRadius="10" Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}">
+    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+   </Border>
+   <ControlTemplate.Triggers>
+    <MultiTrigger><MultiTrigger.Conditions><Condition Property="IsMouseOver" Value="True"/><Condition Property="IsEnabled" Value="True"/></MultiTrigger.Conditions>
+     <Setter Property="Background" Value="{DynamicResource Theme.soft}"/><Setter Property="Foreground" Value="{DynamicResource Color.textPrimary}"/>
+    </MultiTrigger>
+    <Trigger Property="IsKeyboardFocused" Value="True"><Setter Property="Background" Value="{DynamicResource Theme.soft}"/><Setter Property="Foreground" Value="{DynamicResource Color.textPrimary}"/></Trigger>
+    <Trigger Property="IsPressed" Value="True"><Setter Property="Background" Value="{DynamicResource Color.fieldHover}"/></Trigger>
+    <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/><Setter Property="Background" Value="Transparent"/></Trigger>
+   </ControlTemplate.Triggers>
+  </ControlTemplate></Setter.Value></Setter>
+ </Style>
+ <Style x:Key="RowDeleteButton" TargetType="Button" BasedOn="{StaticResource RowActionButton}">
+  <Style.Triggers>
+   <MultiTrigger><MultiTrigger.Conditions><Condition Property="IsMouseOver" Value="True"/><Condition Property="IsEnabled" Value="True"/></MultiTrigger.Conditions>
+    <Setter Property="Background" Value="{DynamicResource Color.dangerSoft}"/><Setter Property="Foreground" Value="{DynamicResource Color.danger}"/>
+   </MultiTrigger>
+   <MultiTrigger><MultiTrigger.Conditions><Condition Property="IsKeyboardFocused" Value="True"/><Condition Property="IsEnabled" Value="True"/></MultiTrigger.Conditions>
+    <Setter Property="Background" Value="{DynamicResource Color.dangerSoft}"/><Setter Property="Foreground" Value="{DynamicResource Color.danger}"/>
+   </MultiTrigger>
+  </Style.Triggers>
+ </Style>
 </ResourceDictionary>

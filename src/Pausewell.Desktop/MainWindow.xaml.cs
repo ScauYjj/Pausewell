@@ -147,9 +147,9 @@ public partial class MainWindow : Window
             try{toggle.IsChecked=actual;toggle.Content=actual?"开启":"关闭";}finally{syncing=false;}
         }
         toggle.Checked+=ChangeEnabled;toggle.Unchecked+=ChangeEnabled;Grid.SetColumn(toggle,3);row.Children.Add(toggle);
-        var edit=Ui.Button("编辑",()=>EditPlan(p),id:"Edit_"+p.Id);var delete=Ui.Button("删除",()=>new DeletePlanWindow(_app,p){Owner=this}.ShowDialog(),id:"Delete_"+p.Id);delete.SetResourceReference(Control.ForegroundProperty,"Color.danger");
-        foreach(var b in new[]{edit,delete}){b.Padding=new(10,7,10,7);b.MinWidth=0;b.FontSize=13;}
-        var operations=Ui.Actions(edit,delete);operations.VerticalAlignment=VerticalAlignment.Center;Grid.SetColumn(operations,4);row.Children.Add(operations);
+        var edit=Ui.RowAction("编辑",()=>EditPlan(p),"Edit_"+p.Id);var delete=Ui.RowAction("删除",()=>new DeletePlanWindow(_app,p){Owner=this}.ShowDialog(),"Delete_"+p.Id,true);
+        edit.Margin=new(0,0,4,0);AutomationProperties.SetName(edit,"编辑"+p.Name);AutomationProperties.SetName(delete,"删除"+p.Name);
+        var operations=new StackPanel{Orientation=Orientation.Horizontal,VerticalAlignment=VerticalAlignment.Center,Children={edit,delete}};Grid.SetColumn(operations,4);row.Children.Add(operations);
         var outer=new Border { Child=row,BorderThickness=new(0,0,0,1),Padding=new(24,16,8,16) };outer.SetResourceReference(Border.BorderBrushProperty,"Line");return outer;
     }
     private static Grid SectionHeading(string title,Button action)

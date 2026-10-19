@@ -34,6 +34,27 @@ public static class Ui
         if(id!=null)System.Windows.Automation.AutomationProperties.SetAutomationId(b,id);
         b.Click+=(_,_)=>action();return b;
     }
+    public static Button RowAction(string title, Action action, string id, bool destructive = false)
+    {
+        var button = Button(title, action, id: id);
+        button.SetResourceReference(FrameworkElement.StyleProperty, destructive ? "RowDeleteButton" : "RowActionButton");
+        button.Margin = new(0);
+        System.Windows.Automation.AutomationProperties.SetName(button, title);
+        var content = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        var glyph = new System.Windows.Shapes.Path
+        {
+            Data = Geometry.Parse(destructive
+                ? "M4,6 L20,6 M9,6 L9,3 L15,3 L15,6 M6,6 L7,21 L17,21 L18,6 M10,10 L10,17 M14,10 L14,17"
+                : "M14,5 L19,10 M4,20 L5,15 L16,4 C17,3 18,3 19,4 L20,5 C21,6 21,7 20,8 L9,19 Z"),
+            StrokeThickness = 1.5, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round,
+            StrokeLineJoin = PenLineJoin.Round, Stretch = Stretch.Uniform, Width = 14, Height = 14, Margin = new(0, 0, 6, 0)
+        };
+        glyph.SetBinding(System.Windows.Shapes.Path.StrokeProperty, new System.Windows.Data.Binding(nameof(Control.Foreground)) { Source = button });
+        var label = new TextBlock { Text = title, FontSize = 13, TextWrapping = TextWrapping.NoWrap, VerticalAlignment = VerticalAlignment.Center };
+        label.SetBinding(TextBlock.ForegroundProperty, new System.Windows.Data.Binding(nameof(Control.Foreground)) { Source = button });
+        content.Children.Add(glyph); content.Children.Add(label); button.Content = content;
+        return button;
+    }
     public static FrameworkElement Icon(string name,double size=22,string brush="Ink")
     {
         var stream=Application.GetResourceStream(new Uri($"pack://application:,,,/Assets/Icons/{name}.svg"))?.Stream ?? throw new InvalidDataException("缺少图标："+name);
