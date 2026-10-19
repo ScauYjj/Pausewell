@@ -32,6 +32,8 @@ public sealed class RecordWindow : MaterialWindow
     {
         var record=_app.Engine.State.Occurrences.Single(o=>o.Id==_id);Title=_editing?"更正记录":_readOnly?"只读记录详情":"记录详情";
         var body=new StackPanel();body.Children.Add(TaskUi.Summary(record.PlanName,Ui.Status(record)+" · 原计划 "+At(record.DueAt)));Ui.Gap(body,24);
+        if(record.EndReason.Length>0)body.Children.Add(Ui.Notice(record.EndReason));
+        if(record.Activity is {} activity)body.Children.Add(Ui.Notice($"辅助计时累计 {(int)activity.AccumulatedSeconds} 秒。{activity.EndReason}。计时本身不代表已完成。"));
         ErrorMessage=TaskUi.Error();var footer=new StackPanel();footer.Children.Add(ErrorMessage);
         if(_editing)
         {

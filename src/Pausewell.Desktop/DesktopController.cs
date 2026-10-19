@@ -21,7 +21,7 @@ public sealed class DesktopController : IDisposable
     private readonly System.Drawing.Icon _trayIcon;
     private readonly DispatcherTimer _timer;
     private bool _sessionLocked,_suspended,_faulted;
-    private bool _locked=>_sessionLocked||_suspended;
+    private bool _locked=>_sessionLocked||_suspended||Engine.State.IsAway;
     private DateTimeOffset _nextDiagnosticSample=DateTimeOffset.MinValue;
     private bool _diagnosticStarted;
     public bool SchedulingFaulted=>_faulted;
@@ -40,6 +40,7 @@ public sealed class DesktopController : IDisposable
         _tray = new Forms.NotifyIcon { Text = "间歇 · 提醒已恢复", Icon = _trayIcon, Visible = true };
         var menu = new Forms.ContextMenuStrip();
         menu.Items.Add("打开间歇", null, (_, _) => Dispatch(ShowMain));
+        menu.Items.Add("离开 / 返回", null, (_, _) => Dispatch(ToggleAway));
         menu.Items.Add("会议 30 分钟", null, (_, _) => Dispatch(() => Meeting(30)));
         menu.Items.Add("结束会议", null, (_, _) => Dispatch(EndMeeting));
         menu.Items.Add("退出应用", null, (_, _) => Dispatch(() => Quit()));
@@ -84,6 +85,12 @@ public sealed class DesktopController : IDisposable
     });
     public void Meeting(int minutes) => Run(() => { Engine.BeginMeeting(DateTimeOffset.UtcNow.AddMinutes(minutes), DateTimeOffset.UtcNow); CloseReminders(); });
     public void EndMeeting() => Run(() => Engine.EndMeeting(DateTimeOffset.UtcNow));
+    public void ToggleAway() => Run(() =>
+    {
+        if (Engine.State.IsAway) Engine.Recover(DateTimeOffset.UtcNow, RecoveryReason.ManualReturn);
+        else Engine.MarkUnavailable(DateTimeOffset.UtcNow, true);
+        CloseReminders(); _tray.Text = Engine.State.IsAway ? "间歇 · 已离开" : "间歇 · 提醒已恢复";
+    });
 
     private void Tick()
     {
@@ -95,12 +102,6 @@ public sealed class DesktopController : IDisposable
             var due = Engine.Evaluate(DateTimeOffset.UtcNow);
             if (Engine.State.MeetingUntil == null) _tray.Text = Engine.State.PauseUntil != null ? "间歇 · 普通提醒已暂停" : "间歇 · 提醒中";
             Main.RefreshIfChanged();
-            if(Engine.State.ShowMeetingSummary&&Engine.State.MeetingUntil==null&&!(Engine.State.BufferUntil>DateTimeOffset.UtcNow)&&_reminders.Count==0&&_queue==null)
-            {
-                var pending=Engine.State.Occurrences.Any(o=>o.Status is OccurrenceStatus.Pending or OccurrenceStatus.Deferred or OccurrenceStatus.NeedsReview);
-                Engine.DismissMeetingSummary(DateTimeOffset.UtcNow);
-                if(pending){ShowQueue();return;}
-            }
             if(_queue!=null)return;
             if (_reminders.Count != 0 || due.Count == 0) return;
             if (Engine.State.MeetingUntil != null)
@@ -110,7 +111,7 @@ public sealed class DesktopController : IDisposable
                 Balloon("间歇 · 个人计划", Engine.State.Preferences.HideMedicationNames ? "有一项个人计划到期，请在方便时查看。" : string.Join("、",due.Select(o=>o.PlanName)), false);
                 return;
             }
-            var gentle = due.Where(o => o.Style == ReminderStyle.Gentle).ToList();
+            var gentle = due.Where(o => o.Style == ReminderStyle.Gentle || o.SuppressStrong).ToList();
             if (gentle.Count != 0)
             {
                 Engine.MarkPresented(gentle.Select(o => o.Id), DateTimeOffset.UtcNow);
@@ -161,7 +162,7 @@ public sealed class DesktopController : IDisposable
         window.Closed += (_, _) => { _reminders.Remove(window); Main.RefreshIfChanged(); Main.RefreshClock(); };
         window.Show();
         Diagnostics.Shown(items,preview);
-        if (!preview && Engine.State.SoundEnabled && Engine.State.MeetingUntil == null) System.Media.SystemSounds.Asterisk.Play();
+        if (!preview && Engine.State.SoundEnabled && Engine.State.MeetingUntil == null && !items.Any(o=>o.SuppressStrong)) System.Media.SystemSounds.Asterisk.Play();
         return window;
     }
 
@@ -188,20 +189,20 @@ public sealed class DesktopController : IDisposable
     private void SessionChanged(object sender, SessionSwitchEventArgs e) => Dispatch(()=>HandleSession(e.Reason));
     internal void HandleSession(SessionSwitchReason reason,bool verification=false)
     {
-        if(reason==SessionSwitchReason.SessionLock){Diagnostics.Session(true,verification);_sessionLocked=true;CloseReminders();}
+        if(reason==SessionSwitchReason.SessionLock){Diagnostics.Session(true,verification);_sessionLocked=true;Run(()=>Engine.MarkUnavailable(DateTimeOffset.UtcNow));CloseReminders();}
         if(reason==SessionSwitchReason.SessionUnlock){Diagnostics.Session(false,verification);_sessionLocked=false;if(!_suspended)Recover();}
     }
     private void PowerChanged(object sender, PowerModeChangedEventArgs e) => Dispatch(()=>HandlePower(e.Mode));
     internal void HandlePower(PowerModes mode,bool verification=false)
     {
-        if(mode==PowerModes.Suspend){Diagnostics.Power(true,verification);_suspended=true;CloseReminders();Run(()=>Engine.Checkpoint(DateTimeOffset.UtcNow));}
+        if(mode==PowerModes.Suspend){Diagnostics.Power(true,verification);_suspended=true;Run(()=>Engine.MarkUnavailable(DateTimeOffset.UtcNow));CloseReminders();}
         if(mode==PowerModes.Resume){Diagnostics.Power(false,verification);_suspended=false;if(!_sessionLocked)Recover();}
     }
-    private void Recover() { Run(() => {Engine.Evaluate(DateTimeOffset.UtcNow, recovery: true);_faulted=false;}); }
+    private void Recover() { Run(() => {Engine.Recover(DateTimeOffset.UtcNow, RecoveryReason.SystemReturn);_faulted=false;}); }
 
     public bool Quit(int exitCode = 0)
     {
-        try { Engine.Checkpoint(DateTimeOffset.UtcNow); }
+        try { Engine.Exit(DateTimeOffset.UtcNow); }
         catch (Exception ex) { ShowMain(); Main.ReportError("退出前保存失败，应用仍在运行。" + ex.Message); return false; }
         Quitting = true; _timer.Stop(); CloseReminders(); _queue?.Close();Diagnostics.Exit(); Main.Close(); System.Windows.Application.Current.Shutdown(exitCode); return true;
     }

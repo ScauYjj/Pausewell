@@ -14,7 +14,9 @@ public sealed class ReminderWindow : MaterialWindow
     private readonly DesktopController _app;private readonly bool _preview,_strong;
     private readonly List<Occurrence> _remaining;private readonly List<Window> _masks=[];
     private readonly DispatcherTimer _timer;
-    private readonly Dictionary<string,(Stopwatch Clock,TextBlock Label,Button Complete,int Seconds)> _activity=[];
+    private sealed class ActivityControls(TextBlock label, Button start, int seconds)
+    { public TextBlock Label=label; public Button Start=start; public int Seconds=seconds; public Stopwatch? PreviewClock; }
+    private readonly Dictionary<string,ActivityControls> _activity=[];
     private readonly TextBlock _feedback=TaskUi.Error();
     private readonly StackPanel _primaryActions=new();
     private Button? _historyAction;
@@ -24,7 +26,7 @@ public sealed class ReminderWindow : MaterialWindow
     public bool HasMedication=>_remaining.Any(o=>o.Kind==HabitKind.Medication);
     public ReminderWindow(DesktopController app,IReadOnlyList<Occurrence> items,bool preview)
     {
-        _app=app;_preview=preview;_remaining=items.ToList();_strong=items.Any(o=>o.Style==ReminderStyle.Fullscreen);Title=preview?"间歇 · 外观预览":"间歇 · 到期提醒";Topmost=true;Width=items.Count==1?520:680;Height=720;MinWidth=430;MaxHeight=SystemParameters.WorkArea.Height-24;WindowStartupLocation=WindowStartupLocation.CenterScreen;
+        _app=app;_preview=preview;_remaining=items.ToList();_strong=items.Any(o=>o.Style==ReminderStyle.Fullscreen&&!o.SuppressStrong);Title=preview?"间歇 · 外观预览":"间歇 · 到期提醒";Topmost=true;Width=items.Count==1?540:680;Height=760;MinWidth=430;MaxHeight=SystemParameters.WorkArea.Height-24;WindowStartupLocation=WindowStartupLocation.CenterScreen;
 
         if(_strong){WindowStyle=WindowStyle.None;ResizeMode=ResizeMode.NoResize;ShowInTaskbar=false;MaxHeight=double.PositiveInfinity;}
         var body=new StackPanel();
@@ -61,10 +63,14 @@ public sealed class ReminderWindow : MaterialWindow
             panel.Children.Add(Ui.Text(last?.ResolvedAt is {} confirmed?$"最近确认：{_app.Engine.Local(confirmed):MM-dd HH:mm}"+(last.ActualAt is {} actual?$"，实际 {_app.Engine.Local(actual):MM-dd HH:mm}":"，实际时刻未记录"):"没有已确认的历史记录。",13,brush:"Muted",margin:new(0,0,0,14)));
             if(item.Status==OccurrenceStatus.NeedsReview)panel.Children.Add(Ui.Notice("缺少确认不代表实际未服用。请核对后记录本次情况。"));
         }
-        var actions=new StackPanel();var complete=Ui.Button(item.Kind==HabitKind.Medication?"已服用，填写记录":item.Kind==HabitKind.Water?"确认已喝水":"确认已完成",()=>{},true,"Complete_"+item.Kind);complete.Margin=new(0,12,0,0);complete.Click+=(_,_)=>{if(item.Kind==HabitKind.Medication){var dialog=new MedicineConfirmation(_app,item,_preview,()=>Resolve(item,OccurrenceStatus.Completed,panel,recordAlreadySaved:true)){Owner=this};dialog.ShowDialog();}else Resolve(item,OccurrenceStatus.Completed,panel);};
+        var actions=new StackPanel();var complete=Ui.Button(item.Kind==HabitKind.Medication?"已服用，填写记录":item.Kind==HabitKind.Water?"确认已喝水":item.Kind==HabitKind.Activity?"刚刚已活动":"确认已完成",()=>{},item.Kind!=HabitKind.Activity,"Complete_"+item.Kind);complete.Margin=new(0,12,0,0);complete.Click+=(_,_)=>{if(item.Kind==HabitKind.Medication){var dialog=new MedicineConfirmation(_app,item,_preview,()=>Resolve(item,OccurrenceStatus.Completed,panel,recordAlreadySaved:true)){Owner=this};dialog.ShowDialog();}else Resolve(item,OccurrenceStatus.Completed,panel);};
         if(item.Kind==HabitKind.Activity)
         {
-            complete.IsEnabled=false;var label=Ui.Text($"活动时长 {item.ActivitySeconds} 秒",15,margin:new(0,8,0,12));panel.Children.Add(label);var start=Ui.Button("开始活动计时",()=>{},id:"StartActivity");start.Click+=(_,_)=>{_activity[item.Id]=(Stopwatch.StartNew(),label,complete,item.ActivitySeconds);start.IsEnabled=false;};actions.Children.Add(start);
+            var label=Ui.Text($"辅助计时 {item.ActivitySeconds} 秒，可按实际情况直接确认。",15,margin:new(0,8,0,12));panel.Children.Add(label);var start=Ui.Button("开始活动计时",()=>{},true,"StartActivity");
+            var controls=new ActivityControls(label,start,item.ActivitySeconds);_activity[item.Id]=controls;
+            start.Click+=(_,_)=>{try{if(_preview){controls.PreviewClock??=new();if(controls.PreviewClock.IsRunning)controls.PreviewClock.Stop();else controls.PreviewClock.Start();}else{var current=_app.Engine.State.Occurrences.Single(o=>o.Id==item.Id);if(current.Activity?.State==ActivityState.Running)_app.Engine.PauseActivity(item.Id,DateTimeOffset.UtcNow);else _app.Engine.StartActivity(item.Id,DateTimeOffset.UtcNow);}Progress();}catch(Exception ex){_feedback.Text="计时尚未改变："+TaskUi.Failure(ex);}};
+            actions.Children.Add(start);
+            actions.Children.Add(Ui.Button("这次略过",()=>Resolve(item,OccurrenceStatus.Skipped,panel),id:"SkipActivity"));
         }
         actions.Children.Add(complete);
         if(item.Kind==HabitKind.Toilet)actions.Children.Add(Ui.Button("当前无需",()=>Resolve(item,OccurrenceStatus.NotNeeded,panel),id:"NoNeed"));
@@ -94,7 +100,17 @@ public sealed class ReminderWindow : MaterialWindow
     public void EndEmergencyHold(){_hold=null;_escape.Content="长按 2 秒，紧急退出";}
     private void Progress()
     {
-        foreach(var value in _activity.Values){var remaining=Math.Max(0,value.Seconds-(int)value.Clock.Elapsed.TotalSeconds);value.Label.Text=remaining==0?"计时结束，请确认是否实际完成。":$"还剩 {remaining} 秒";value.Complete.IsEnabled=remaining==0;}
+        if(!_preview&&_remaining.Any(item=>_app.Engine.State.Occurrences.FirstOrDefault(o=>o.Id==item.Id)?.Status is OccurrenceStatus.Expired or OccurrenceStatus.Cancelled)){CloseWithoutAction();return;}
+        foreach(var (id,value) in _activity)
+        {
+            var current=_preview?null:_app.Engine.State.Occurrences.FirstOrDefault(o=>o.Id==id);
+            var elapsed=_preview?value.PreviewClock?.Elapsed.TotalSeconds??0:_app.Engine.ActivityElapsed(id,DateTimeOffset.UtcNow);
+            var running=_preview?value.PreviewClock?.IsRunning==true:current?.Activity?.State==ActivityState.Running;
+            var remaining=Math.Max(0,value.Seconds-(int)elapsed);
+            value.Label.Text=remaining==0?"计时结束，请确认是否实际完成。":elapsed>0?$"剩余辅助计时 {remaining/60:00}:{remaining%60:00}"+(running?"":" · 已暂停"):"计时可选，刚刚已活动可直接确认。";
+            value.Start.Content=running?"暂停计时":elapsed>0?"继续计时":"开始活动计时";
+            value.Start.IsEnabled=remaining>0;
+        }
         if(_hold!=null){_escape.Content=$"继续按住… {Math.Max(0,2-_hold.Elapsed.TotalSeconds):0.0} 秒";if(_hold.Elapsed.TotalSeconds>=2)ExitWithDeferral();}
     }
     private void ExitWithDeferral()

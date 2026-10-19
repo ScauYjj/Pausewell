@@ -85,7 +85,7 @@ internal static class Snapshot
         var json = connection.Scalar("SELECT payload FROM app_state WHERE id=1");
         if (json == null) throw new InvalidDataException("数据库没有有效状态，已停止操作。");
         using var document = JsonDocument.Parse(json);
-        if (!document.RootElement.TryGetProperty("SchemaVersion", out var schema) || schema.GetInt32() is < 1 or > 3)
+        if (!document.RootElement.TryGetProperty("SchemaVersion", out var schema) || schema.GetInt32() is < 1 or > 4)
             throw new InvalidDataException("数据库版本不受此安装包支持，未修改数据。");
         var state = JsonSerializer.Deserialize<AppState>(json, StateJson.Options) ?? throw new InvalidDataException("数据库内容无效。");
         return new(true, state.SchemaVersion, state.Plans.Count, state.Occurrences.Count, state.Preferences.Theme, state.Preferences.StartupEnabled);

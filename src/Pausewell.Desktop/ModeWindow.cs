@@ -67,9 +67,9 @@ public sealed class QueueWindow : MaterialWindow
     public QueueWindow(DesktopController app)
     {
         _app=app;Title="待处理清单";Width=784;Height=720;MinWidth=580;MinHeight=480;
-        var footer=new StackPanel();footer.Children.Add(_error);footer.Children.Add(Ui.Text("待处理事项 5 分钟后再提醒；待核实的服药记录继续保留。",12,brush:"Muted",margin:new(0,0,0,8)));footer.Children.Add(TaskUi.Actions(Ui.Button("返回首页",Close,id:"CloseQueue")));
+        var footer=new StackPanel();footer.Children.Add(_error);footer.Children.Add(Ui.Text("返回首页会保留本次处理状态；需要延期时请明确选择。",12,brush:"Muted",margin:new(0,0,0,8)));footer.Children.Add(TaskUi.Actions(Ui.Button("返回首页",Close,id:"CloseQueue")));
         SetBody(TaskUi.Layout("待处理清单","普通事项逐项处理，服药记录单独核对。",_items,footer));
-        Closing+=(_,e)=>{if(app.Quitting)return;try{app.Engine.Defer(app.Engine.State.Occurrences.Where(o=>o.Status is OccurrenceStatus.Pending or OccurrenceStatus.Deferred).Select(o=>o.Id),DateTimeOffset.UtcNow);app.Engine.DismissMeetingSummary(DateTimeOffset.UtcNow);}catch(Exception ex){e.Cancel=true;_error.Text="未保存，清单仍保留："+TaskUi.Failure(ex);app.Main.ReportError("未保存清单延期："+TaskUi.Failure(ex));}};
+        Closing+=(_,e)=>{if(app.Quitting)return;try{app.Engine.DismissMeetingSummary(DateTimeOffset.UtcNow);}catch(Exception ex){e.Cancel=true;_error.Text="未保存，清单仍保留："+TaskUi.Failure(ex);}};
         Refresh();
     }
     private void Refresh()

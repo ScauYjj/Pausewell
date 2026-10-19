@@ -44,14 +44,14 @@ internal static class OfficeTrialVerification
             if(power)app.HandlePower(PowerModes.Suspend,true);else app.HandleSession(SessionSwitchReason.SessionLock,true);
             await Task.Delay(2300);Check((power?"合成挂起":"合成锁屏")+"处理期间不生成或展示新提醒",!app.Engine.State.Occurrences.Any(o=>o.PlanId==plan.Id)&&app.OpenReminders.Count==0);
             if(power)app.HandlePower(PowerModes.Resume,true);else app.HandleSession(SessionSwitchReason.SessionUnlock,true);
-            var deadline=DateTimeOffset.UtcNow.AddSeconds(5);while(app.OpenReminders.Count==0&&DateTimeOffset.UtcNow<deadline)await Task.Delay(100);
-            var live=app.OpenReminders.Single(w=>SmokeVerification.Descendants<TextBlock>(w).Any(t=>t.Text==plan.Name));Check((power?"合成电源":"合成会话")+"恢复保留一次性原时刻与未完成状态",app.Engine.State.Occurrences.Single(o=>o.PlanId==plan.Id).DueAt==plan.OnceAt&&app.Engine.State.Occurrences.Single(o=>o.PlanId==plan.Id).Status==OccurrenceStatus.Pending);Click(live,"Complete_Other");
+            await Task.Delay(150);Check("系统返回只呈现摘要，旧待办不自动弹窗",app.OpenReminders.Count==0&&app.Engine.State.RecoverySummaryVisible);
+            var live=app.OpenItems([app.Engine.State.Occurrences.Single(o=>o.PlanId==plan.Id)]);Check((power?"合成电源":"合成会话")+"恢复保留一次性原时刻与未完成状态",app.Engine.State.Occurrences.Single(o=>o.PlanId==plan.Id).DueAt==plan.OnceAt&&app.Engine.State.Occurrences.Single(o=>o.PlanId==plan.Id).Status==OccurrenceStatus.Pending);Click(live,"Complete_Other");
         }
         var overlapNow=DateTimeOffset.UtcNow;var overlap=new ReminderPlan{Name="合成锁屏与睡眠重叠验证",Kind=HabitKind.Other,Schedule=ScheduleKind.Once,OnceAt=overlapNow.AddSeconds(2),Style=ReminderStyle.Card};app.Engine.SavePlan(overlap,overlapNow);
         app.HandleSession(SessionSwitchReason.SessionLock,true);app.HandlePower(PowerModes.Suspend,true);app.HandlePower(PowerModes.Resume,true);await Task.Delay(2300);
         Check("合成睡眠恢复不会解除仍然存在的锁屏状态",app.OpenReminders.Count==0&&!app.Engine.State.Occurrences.Any(o=>o.PlanId==overlap.Id));
-        app.HandleSession(SessionSwitchReason.SessionUnlock,true);var unlockDeadline=DateTimeOffset.UtcNow.AddSeconds(5);while(app.OpenReminders.Count==0&&DateTimeOffset.UtcNow<unlockDeadline)await Task.Delay(100);
-        var resumed=app.OpenReminders.Single(w=>SmokeVerification.Descendants<TextBlock>(w).Any(t=>t.Text==overlap.Name));Check("合成锁屏和睡眠都结束后恢复同一原时刻",app.Engine.State.Occurrences.Single(o=>o.PlanId==overlap.Id).DueAt==overlap.OnceAt);Click(resumed,"Complete_Other");
+        app.HandleSession(SessionSwitchReason.SessionUnlock,true);await Task.Delay(150);Check("重叠系统返回不自动补弹旧待办",app.OpenReminders.Count==0);
+        var resumed=app.OpenItems([app.Engine.State.Occurrences.Single(o=>o.PlanId==overlap.Id)]);Check("合成锁屏和睡眠都结束后恢复同一原时刻",app.Engine.State.Occurrences.Single(o=>o.PlanId==overlap.Id).DueAt==overlap.OnceAt);Click(resumed,"Complete_Other");
         Check("试用诊断启用并包含明确标注的合成信号",app.Diagnostics.Enabled&&File.ReadLines(app.Diagnostics.CurrentPath).Select(line=>JsonDocument.Parse(line)).Count(d=>d.RootElement.GetProperty("fields").TryGetProperty("origin",out var origin)&&origin.GetString()=="verification")==8);
         using(var held=new FileStream(app.Diagnostics.CurrentPath,FileMode.Open,FileAccess.ReadWrite,FileShare.None))
         {

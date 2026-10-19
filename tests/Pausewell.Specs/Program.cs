@@ -59,7 +59,7 @@ Run("会议抑制普通弹窗，到期缓冲后恢复", () =>
 {
     var (e, _) = Boot(); e.BeginMeeting(origin.AddHours(1), origin); Assert(e.Evaluate(origin.AddMinutes(30)).Count == 0);
     Assert(e.Evaluate(origin.AddHours(1)).Count == 0); Assert(e.State.MeetingUntil == null);
-    Assert(e.Evaluate(origin.AddHours(1).AddSeconds(30)).Count == 1);
+    Assert(e.Evaluate(origin.AddHours(1).AddSeconds(30)).Count == 0 && e.State.RecoverySummaryVisible && e.State.Occurrences.All(o=>o.Status!=OccurrenceStatus.Completed));
 });
 Run("会议不改变药物时刻和确认状态", () =>
 {
@@ -151,14 +151,14 @@ Run("修改或停用药物计划不抹掉未核对事项", () =>
 Run("普通固定事项恢复时不堆积多个补打卡", () =>
 {
     var p = Drug(); p.Kind = HabitKind.Water; var (e, _) = Boot(p);
-    e.Evaluate(origin.AddHours(5)); Assert(e.State.Occurrences.Count(o => o.Status == OccurrenceStatus.Pending) == 1);
-    Assert(e.State.Occurrences.Single(o => o.Status == OccurrenceStatus.Pending).DueAt == origin.AddHours(4));
+    e.Evaluate(origin.AddHours(5)); Assert(e.State.Occurrences.Count(o => o.Status == OccurrenceStatus.Pending) == 0);
+    Assert(e.State.Occurrences.All(o => o.Status == OccurrenceStatus.Expired));
 });
 Run("普通待办在办公时段外不重复弹出", () =>
 {
     var p = Habit(); p.WindowStart = "09:00"; p.WindowEnd = "18:00"; var (e, _) = Boot(p);
     e.Evaluate(origin.AddMinutes(30)); Assert(e.Evaluate(origin.AddHours(10)).Count == 0);
-    Assert(e.State.Occurrences.Single().Status == OccurrenceStatus.Pending);
+    Assert(e.State.Occurrences.Single().Status == OccurrenceStatus.Expired);
 });
 Run("全局暂停期间会议模式仍到期恢复", () =>
 {
@@ -219,7 +219,7 @@ Run("换肤只改变设置，保存失败保持原主题", () =>
 Run("schema 1 兼容，主题与记录不丢失", () =>
 {
     var store=new MemoryStore { Value=new AppState { SchemaVersion=1, LastScan=origin, Plans=[Habit()] } };
-    var e=new ReminderEngine(store,origin); Assert(e.State.SchemaVersion==3 && e.State.Preferences.Theme=="champagne" && e.State.Plans.Count==1);
+    var e=new ReminderEngine(store,origin); Assert(e.State.SchemaVersion==4 && e.State.Preferences.Theme=="champagne" && e.State.Plans.Count==1);
     e.ResumeOnLaunch(origin); Assert(e.State.Running);
 });
 Run("停用一项不重置其他项计时", () =>
@@ -244,10 +244,11 @@ Run("待核实药物明确延期后再通知，原计划不变", () =>
 
 Run("SQLite 旧版快照升级前备份并保留原计划", () =>
 {
-    var dir=Path.Combine(Path.GetTempPath(),"Pausewell.Specs",Guid.NewGuid().ToString("N"));Directory.CreateDirectory(dir);using var store=new SqliteStateStore(Path.Combine(dir,"old.db"));store.Save(new(){SchemaVersion=1,LastScan=origin,Plans=[Habit()]});var backup=store.Backup();var e=new ReminderEngine(store,origin);e.SavePreferences(new(){Theme="copper"},false,false,origin);Assert(store.Load()!.SchemaVersion==3&&store.Load()!.Plans.Count==1);using var old=new SqliteStateStore(backup);Assert(old.Load()!.SchemaVersion==1&&old.IntegrityCheck()=="ok");
+    var dir=Path.Combine(Path.GetTempPath(),"Pausewell.Specs",Guid.NewGuid().ToString("N"));Directory.CreateDirectory(dir);using var store=new SqliteStateStore(Path.Combine(dir,"old.db"));store.Save(new(){SchemaVersion=1,LastScan=origin,Plans=[Habit()]});var backup=store.Backup();var e=new ReminderEngine(store,origin);e.SavePreferences(new(){Theme="copper"},false,false,origin);Assert(store.Load()!.SchemaVersion==4&&store.Load()!.Plans.Count==1);using var old=new SqliteStateStore(backup);Assert(old.Load()!.SchemaVersion==1&&old.IntegrityCheck()=="ok");
 });
 
 OnceSpecs.Run(Run);
+LifecycleSpecs.Run(Run);
 
 var output = args.FirstOrDefault() ?? Path.Combine(Environment.CurrentDirectory, "artifacts", "rules-test-results.json");
 Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(output))!);

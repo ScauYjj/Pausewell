@@ -62,6 +62,6 @@ public static class Ui
     { var p=new StackPanel { Orientation=Orientation.Horizontal };foreach(var c in children)p.Children.Add(c);return p; }
     public static ScrollViewer Scroll(UIElement content)=>new() { Content=content,VerticalScrollBarVisibility=ScrollBarVisibility.Auto,HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled,Padding=new(0,0,8,8) };
     public static void Gap(Panel p,double height=16)=>p.Children.Add(new Border { Height=height });
-    public static string Rule(ReminderPlan p,DateTimeOffset? localOnce=null)=>p.Schedule==ScheduleKind.Once?$"仅一次 · {(localOnce??p.OnceAt):yyyy-MM-dd HH:mm}":p.Schedule==ScheduleKind.Interval?$"确认完成后 {p.IntervalMinutes} 分钟":string.Join(" / ",p.Times);
+    public static string Rule(ReminderPlan p,DateTimeOffset? localOnce=null)=>p.Schedule==ScheduleKind.Once?$"仅一次 · {(localOnce??p.OnceAt):yyyy-MM-dd HH:mm}":p.Schedule==ScheduleKind.Interval?(p.IsHabit?$"完成后 {p.IntervalMinutes} 分钟":$"每 {p.IntervalMinutes} 分钟"):string.Join(" / ",p.Times);
     public static string Status(Occurrence o)=>o.Status switch { OccurrenceStatus.Completed when o.Kind==HabitKind.Medication=>"已服用",OccurrenceStatus.Skipped when o.Kind==HabitKind.Medication=>"未服用",_=>Labels.Status(o.Status) };
 }

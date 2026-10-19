@@ -8,7 +8,7 @@ if($LASTEXITCODE -ne 0){throw 'Current application build failed.'}
 $program=Join-Path $workspace 'artifacts/publish/win-x64/Pausewell.exe'
 $programHash=(Get-FileHash -LiteralPath $program).Hash
 $output=Join-Path $workspace 'artifacts/packages'
-$bundle=Join-Path $output 'Pausewell-0.3.10-win-x64'
+$bundle=Join-Path $output 'Pausewell-0.4.0-win-x64'
 if((Test-Path -LiteralPath $bundle) -and -not $RefreshPackage){throw 'Output already exists. Use -RefreshPackage only for this regenerable package output.'}
 New-Item -ItemType Directory -Path $bundle -Force | Out-Null
 & $dotnet publish (Join-Path $workspace 'src/Pausewell.Maintenance/Pausewell.Maintenance.csproj') -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:DebugType=None -o (Join-Path $output 'maintenance-build') --nologo
@@ -22,7 +22,7 @@ $utf8Bom=New-Object Text.UTF8Encoding($true)
 $cmd='@echo off'+"`r`n"+'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Manage-Pausewell.ps1" -Action install -Interactive'+"`r`n"+'pause'+"`r`n"
 [IO.File]::WriteAllText((Join-Path $bundle 'Install.cmd'),$cmd,[Text.Encoding]::ASCII)
 $guide=@'
-间歇 Pausewell v0.3.10 安装试用包
+间歇 Pausewell v0.4.0 安装试用包
 
 完整解压到独立文件夹，双击 Install.cmd。无需管理员权限，无需另装 .NET。
 首次使用不会自动创建计划、自动运行或启用开机启动；已有数据中的开机启动设置会沿用。请在开始菜单打开“间歇 Pausewell”。
@@ -38,7 +38,7 @@ $guide=@'
 
 程序回退：先退出应用，找到 backups 中带 program.json 的文件夹，再运行：
   .\Manage-Pausewell.ps1 -Action rollback -SourcePath "完整备份文件夹路径"
-只回退主程序，保留最新执行记录。目前只允许校验过的 v0.3.9 与 v0.3.10。
+只回退数据格式兼容且哈希校验通过的主程序。v0.4 数据升级后，禁止单独退回 v0.3 程序；需要保留升级前备份与旧包，不能让旧程序读取新数据。
 
 手动备份：
   .\Manage-Pausewell.ps1 -Action backup
@@ -52,11 +52,11 @@ $guide=@'
 $compatible=@(
  @{version='0.3.9';sha256='D12DD90B0F6C6FEDD7560577B6DE9929A293B973EE4501DB9D81F83755076028'},
  @{version='0.3.10';sha256='778162BFBE886654DFBAA18BC85651C1ECEF3543544003964976A7111DEEE97B'},
- @{version='0.3.10';sha256=$programHash}
+ @{version='0.4.0';sha256=$programHash}
 )
 $files=@(Get-ChildItem -LiteralPath $bundle -File -Recurse | Where-Object {$_.Name -ne 'pausewell-package.json'} | ForEach-Object {@{path=$_.FullName.Substring($bundle.Length+1).Replace('\','/');sha256=(Get-FileHash -LiteralPath $_.FullName).Hash}})
-@{version='0.3.10';files=$files;compatiblePrograms=$compatible} | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $bundle 'pausewell-package.json') -Encoding UTF8
-$archive=Join-Path $output 'Pausewell-0.3.10-win-x64-install.zip'
+@{version='0.4.0';files=$files;compatiblePrograms=$compatible} | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $bundle 'pausewell-package.json') -Encoding UTF8
+$archive=Join-Path $output 'Pausewell-0.4.0-win-x64-install.zip'
 Compress-Archive -LiteralPath $bundle -DestinationPath $archive -CompressionLevel Optimal -Force
-@{createdAt=[DateTimeOffset]::UtcNow.ToString('o');appVersion='0.3.10';appSha256=$programHash;archive=$archive;sha256=(Get-FileHash -LiteralPath $archive).Hash;compiler='local .NET SDK';signed=$false;standardInstaller=$false} | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $output 'package-manifest.json') -Encoding UTF8
+@{createdAt=[DateTimeOffset]::UtcNow.ToString('o');appVersion='0.4.0';appSha256=$programHash;archive=$archive;sha256=(Get-FileHash -LiteralPath $archive).Hash;compiler='local .NET SDK';signed=$false;standardInstaller=$false} | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $output 'package-manifest.json') -Encoding UTF8
 Write-Output $archive

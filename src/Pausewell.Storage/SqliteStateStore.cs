@@ -68,7 +68,7 @@ public sealed class SqliteStateStore : IStateStore, IDisposable
     }
     public string Backup()
     {
-        var target = FilePath + ".before-v02-" + DateTimeOffset.UtcNow.ToString("yyyyMMdd-HHmmssfff") + ".db";
+        var target = FilePath + ".before-schema4-" + DateTimeOffset.UtcNow.ToString("yyyyMMdd-HHmmssfff") + ".db";
         Exec("VACUUM INTO '" + target.Replace("'", "''") + "';");
         return target;
     }

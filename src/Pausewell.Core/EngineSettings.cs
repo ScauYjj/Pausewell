@@ -11,6 +11,7 @@ public sealed partial class ReminderEngine
     public void ResumeOnLaunch(DateTimeOffset now)
     {
         if (!State.Running && State.Plans.Any(p => p.Enabled)) SetRunning(true, now);
+        if (State.IsAway) Recover(now, RecoveryReason.Launch);
     }
     public void SetEnabled(string id, bool enabled, DateTimeOffset now)
     {
@@ -28,24 +29,26 @@ public sealed partial class ReminderEngine
     public void BeginPause(DateTimeOffset until, bool includeMedication, DateTimeOffset now)
     {
         if (until <= now || until > now.AddHours(12)) throw new ArgumentException("暂停时长应在 1 至 720 分钟之间。");
-        Change(s => { s.PauseUntil = until; s.PauseMedication = includeMedication; s.MeetingUntil = null; s.BufferUntil = null; s.ShowMeetingSummary = false; Log(s, now, "暂停", $"普通提醒暂停至 {Local(until):HH:mm}" + (includeMedication ? "，同时暂停服药提示" : "，服药按原计划提示")); }, now);
+        Change(s => { InterruptActivities(s, now); s.PauseUntil = until; s.PauseMedication = includeMedication; s.MeetingUntil = null; s.BufferUntil = null; s.ShowMeetingSummary = false; Log(s, now, "暂停", $"普通提醒暂停至 {Local(until):HH:mm}" + (includeMedication ? "，同时暂停服药提示" : "，服药按原计划提示")); }, now);
     }
     public void ResumePause(DateTimeOffset now)
     {
-        Change(s =>
-        {
+        Change(s => ResumePauseState(s, now), now);
+    }
+    private void ResumePauseState(AppState s, DateTimeOffset now)
+    {
             var medsPaused = s.PauseMedication;
             s.PauseUntil = null; s.PauseMedication = false;
-            foreach (var p in s.Plans.Where(p => p.Enabled && p.Kind != HabitKind.Medication && p.Schedule == ScheduleKind.Interval))
-                p.NextDue = Eligible(p, now.AddMinutes(p.IntervalMinutes));
+            s.HabitSegmentStart = now;
+            foreach (var p in s.Plans.Where(p => p.Enabled && p.IsHabit && p.Schedule == ScheduleKind.Interval))
+                p.NextDue = NextHabit(p, now);
             foreach (var o in s.Occurrences.Where(Active))
             {
-                if(s.Plans.Any(p=>p.Id==o.PlanId&&p.Schedule==ScheduleKind.Once))continue;
-                if (o.Kind != HabitKind.Medication) { o.Status = OccurrenceStatus.Cancelled; o.ResolvedAt = now; }
+                if (Habit(o)) EndOccurrence(o, now, "暂停结束，旧习惯不补办");
+                else if (o.Kind != HabitKind.Medication) { o.RecoveryOnly = true; o.SuppressStrong = true; }
                 else if (medsPaused && o.DueAt <= now) o.Status = OccurrenceStatus.NeedsReview;
             }
             Log(s, now, "恢复", "普通间隔从恢复时刻重新计算，药物时刻保留");
-        }, now);
     }
     public void ConfigureMeeting(bool silent, DateTimeOffset now) => Change(s => { s.MeetingSilent = silent; s.PauseUntil = null; s.PauseMedication = false; }, now);
     public void DismissMeetingSummary(DateTimeOffset now) => Change(s => s.ShowMeetingSummary = false, now);

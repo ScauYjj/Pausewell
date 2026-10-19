@@ -61,9 +61,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-install-packag
 dotnet run --project tests/Pausewell.Deployment.Specs -c Release -- .
 ```
 
-打包脚本构建当前源码，生成 `artifacts/packages/Pausewell-0.3.10-win-x64-install.zip`，不依赖作者机器上的历史包或测试清单。重复生成可使用 `-RefreshPackage`。
+打包脚本构建当前源码，生成 `artifacts/packages/Pausewell-0.4.0-win-x64-install.zip`，不依赖作者机器上的历史包或测试清单。重复生成可使用 `-RefreshPackage`。
 
-完整解压后运行 `Install.cmd`。这个 CMD 是安装包的启动入口，不是测试文件；由打包时自动生成，不纳入源码目录。安装和维护通过包内 `Manage-Pausewell.ps1` 执行。
+完整解压后运行 `Install.cmd`。这个 CMD 是安装包的启动入口，由打包时自动生成，不纳入源码目录。安装和维护通过包内 `Manage-Pausewell.ps1` 执行。v0.4 使用 schema 4，打开旧数据库前创建一致性备份，历史结果保留。数据升级后不允许仅把程序退回 v0.3，避免旧程序忽略新规则。
 
 安装恢复测试使用当前包建立受管安装夹具，检查备份、回退保留最新记录、数据恢复确认、坏包拒绝及卸载保留数据，不读真实用户目录。本轮可重复测试不依赖旧 v0.3.9 程序；既有跨版本验收记录保留在历史 Beta 标签，不把同版本夹具测试说成重新通过跨版本验收。
 
@@ -71,4 +71,4 @@ dotnet run --project tests/Pausewell.Deployment.Specs -c Release -- .
 
 主分支保留当前产品源码、资源、有效测试、必要脚本和产品说明。历史原型、逐轮截图比较、旧启动 CMD、个人试用日志与数据库保留在作者本机及历史版本，不进入当前主分支文件列表。已有历史不会被强制改写。
 
-截图均来自独立虚构数据的实际运行窗口，提醒弹窗为自带预览。桌面程序版本为 v0.3.10，整理仓库没有改变提醒规则。Microsoft Fluent 图标许可保留在相应资源目录。
+截图均来自独立虚构数据的实际运行窗口，提醒弹窗为自带预览。桌面程序当前版本为 v0.4.0，新增恢复规则与删除操作；较早的 v0.3.10 演示图以首页标注为准。Microsoft Fluent 图标许可保留在相应资源目录。

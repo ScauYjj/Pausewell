@@ -70,7 +70,7 @@ internal static class TaskWindowVerification
         verify("紧凑清单保留返回操作",InSurface(queue,Button(queue,"CloseQueue")),null);await shot(queue,"60-queue-compact");
         using(var writer=new IntegrationVerification.WriterLock(app.Store.FilePath))Click(Button(queue,"CloseQueue"));
         verify("清单延期写入失败保持窗口和待核实记录",queue.IsVisible&&app.Engine.State.Occurrences.Single(o=>o.Id==pending.Id).Status==OccurrenceStatus.NeedsReview,null);Click(Button(queue,"CloseQueue"));
-        verify("清单返回保留待核实记录并延期普通事项",app.CurrentQueue==null&&app.Store.Load()!.Occurrences.Single(o=>o.Id==pending.Id).Status==OccurrenceStatus.NeedsReview&&app.Store.Load()!.Occurrences.Single(o=>o.PlanId==ordinary.Id).Status==OccurrenceStatus.Deferred,null);
+        verify("清单返回保留待核实及普通待办，不擅自延期",app.CurrentQueue==null&&app.Store.Load()!.Occurrences.Single(o=>o.Id==pending.Id).Status==OccurrenceStatus.NeedsReview&&app.Store.Load()!.Occurrences.Single(o=>o.PlanId==ordinary.Id).Status==OccurrenceStatus.Pending,null);
         app.Engine.EndMeeting(DateTimeOffset.UtcNow.AddSeconds(-31));app.Engine.Defer(app.Engine.State.Occurrences.Where(o=>o.Status is OccurrenceStatus.Pending or OccurrenceStatus.Deferred).Select(o=>o.Id),DateTimeOffset.UtcNow,60);app.Engine.DismissMeetingSummary(DateTimeOffset.UtcNow);app.Main.ClearError();app.Main.Navigate("Today");
         verify("任务窗口操作后 SQLite 完整",app.Store.IntegrityCheck()=="ok",null);
     }

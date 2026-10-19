@@ -3,7 +3,7 @@
     <OutputType>WinExe</OutputType><TargetFramework>net10.0-windows</TargetFramework>
     <UseWPF>true</UseWPF><UseWindowsForms>true</UseWindowsForms><Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings><AssemblyName>Pausewell</AssemblyName>
-    <ApplicationManifest>app.manifest</ApplicationManifest><Version>0.3.10</Version>
+    <ApplicationManifest>app.manifest</ApplicationManifest><Version>0.4.0</Version>
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="../Pausewell.Core/Pausewell.Core.csproj" /><ProjectReference Include="../Pausewell.Storage/Pausewell.Storage.csproj" /><ProjectReference Include="../Pausewell.Presentation/Pausewell.Presentation.csproj" /></ItemGroup>
   <ItemGroup><RuntimeHostConfigurationOption Include="Switch.System.Windows.Controls.Text.UseAdornerForTextboxSelectionRendering" Value="false" /></ItemGroup>

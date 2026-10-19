@@ -14,7 +14,7 @@ public partial class MainWindow
     private IsoDatePicker? _historyFromInput,_historyToInput;
     private ComboBox? _historyKindInput,_historyStatusInput;
     private TextBlock? _historyFilterHint;
-    private static readonly OccurrenceStatus?[] HistoryStates=[null,OccurrenceStatus.Pending,OccurrenceStatus.Deferred,OccurrenceStatus.Completed,OccurrenceStatus.Skipped,OccurrenceStatus.NeedsReview,OccurrenceStatus.Cancelled,OccurrenceStatus.NotNeeded];
+    private static readonly OccurrenceStatus?[] HistoryStates=[null,OccurrenceStatus.Pending,OccurrenceStatus.Deferred,OccurrenceStatus.Completed,OccurrenceStatus.Skipped,OccurrenceStatus.NeedsReview,OccurrenceStatus.Cancelled,OccurrenceStatus.NotNeeded,OccurrenceStatus.Expired];
 
     private UIElement HistoryPage()
     {
@@ -24,7 +24,7 @@ public partial class MainWindow
         if(_app.Engine.State.RecoveryNotice.Length>0)header.Children.Add(Ui.Notice(_app.Engine.State.RecoveryNotice));
         var filters=new WrapPanel();
         _historyKindInput=new ComboBox{ItemsSource=new[]{"全部事项","活动","喝水","如厕","服药","自定义"},SelectedIndex=_historyKind==null?0:(int)_historyKind+1};PageUi.Id(_historyKindInput,"HistoryKind","记录事项类型");
-        _historyStatusInput=new ComboBox{ItemsSource=new[]{"全部状态","待处理","已延期","已完成 / 已服用","未执行 / 未服用","待核实","已取消","当前无需"},SelectedIndex=Array.IndexOf(HistoryStates,_historyStatus)};PageUi.Id(_historyStatusInput,"HistoryStatus","记录状态");
+        _historyStatusInput=new ComboBox{ItemsSource=new[]{"全部状态","待处理","已延期","已完成 / 已服用","未执行 / 未服用","待核实","已取消","当前无需","已过期"},SelectedIndex=Array.IndexOf(HistoryStates,_historyStatus)};PageUi.Id(_historyStatusInput,"HistoryStatus","记录状态");
         _historyFromInput=new(){SelectedDate=_historyFrom};PageUi.Id(_historyFromInput,"HistoryFrom","记录开始日期");
         _historyToInput=new(){SelectedDate=_historyTo};PageUi.Id(_historyToInput,"HistoryTo","记录结束日期");
         foreach(var (label,input) in new (string,FrameworkElement)[]{("事项类型",_historyKindInput),("执行状态",_historyStatusInput),("开始日期",_historyFromInput),("结束日期",_historyToInput)})
@@ -73,7 +73,7 @@ public partial class MainWindow
             {
                 if(!first){var line=new Border{Height=1,Margin=new(16,0,16,0)};line.SetResourceReference(Border.BackgroundProperty,"Line");group.Children.Add(line);}first=false;
                 var row=new DockPanel{Margin=new(16)};
-                var button=Ui.Button("查看详情",()=>{new RecordWindow(_app,record.Id){Owner=this}.ShowDialog();RefreshHistoryRows();},id:"Record_"+record.Id);button.VerticalAlignment=VerticalAlignment.Center;button.Margin=new(16,0,0,0);DockPanel.SetDock(button,Dock.Right);row.Children.Add(button);
+                var button=Ui.Button(record.Status==OccurrenceStatus.NeedsReview?"核对记录":"查看详情",()=>{if(record.Status==OccurrenceStatus.NeedsReview)_app.OpenItems([record]);else new RecordWindow(_app,record.Id){Owner=this}.ShowDialog();RefreshHistoryRows();},id:"Record_"+record.Id);button.VerticalAlignment=VerticalAlignment.Center;button.Margin=new(16,0,0,0);DockPanel.SetDock(button,Dock.Right);row.Children.Add(button);
                 var badge=Ui.IconCircle(record.Kind,40);badge.Margin=new(0,0,12,0);badge.VerticalAlignment=VerticalAlignment.Center;DockPanel.SetDock(badge,Dock.Left);row.Children.Add(badge);
                 var text=new StackPanel();var heading=new WrapPanel();heading.Children.Add(Ui.Text(record.PlanName,16,true,margin:new(0,0,12,4)));
                 var state=Ui.Text(Ui.Status(record),12);var pill=new Border{Child=state,Padding=new(8,3,8,3),CornerRadius=new(6),VerticalAlignment=VerticalAlignment.Center};pill.SetResourceReference(Border.BackgroundProperty,"SoftBrush");heading.Children.Add(pill);text.Children.Add(heading);

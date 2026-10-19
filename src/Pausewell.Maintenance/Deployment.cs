@@ -120,7 +120,7 @@ internal static class Deployment
             if (source.Equals(installRoot, StringComparison.OrdinalIgnoreCase) || Within(source, installRoot) || Within(installRoot, source))
                 throw new IOException("请先将安装包解压到独立目录。");
             CheckTree(source); package = ReadPackage(source);
-            if (package.Version != "0.3.10") throw new IOException("此维护工具只支持 v0.3.10 安装包。");
+            if (package.Version != "0.4.0") throw new IOException("此维护工具只支持 v0.4.0 安装包。");
             if (installed != null && !package.CompatiblePrograms.Any(p => p.Sha256.Equals(Hash(System.IO.Path.Combine(installRoot, "Pausewell.exe")), StringComparison.OrdinalIgnoreCase)))
                 throw new IOException("已安装程序版本不在兼容清单内，未执行升级。");
         }
@@ -136,7 +136,8 @@ internal static class Deployment
             var hash = Hash(replacement);
             if (!installed.CompatiblePrograms.Any(p => p.Version == version.Version && p.Sha256.Equals(hash, StringComparison.OrdinalIgnoreCase)) || !hash.Equals(version.Sha256, StringComparison.OrdinalIgnoreCase))
                 throw new IOException("回退程序校验失败或不在兼容清单内。");
-            // All allowlisted versions use schema 3, including the Once schedule and corrections.
+            if (state?.schema >= 4 && Version.Parse(version.Version) < new Version(0, 4, 0))
+                throw new IOException("当前数据已升级为 v0.4，不能只回退到旧程序。请保留当前程序或恢复独立的升级前备份。");
             package = installed with { Version = version.Version, Files = installed.Files.Select(f => f.Path == "Pausewell.exe" ? f with { Sha256 = hash } : f).ToArray() };
             source = installRoot;
         }

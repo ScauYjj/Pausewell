@@ -13,8 +13,8 @@ var releaseRoot = Path.Combine(workspace, "artifacts", "packages");
 var testRoot = Path.Combine(releaseRoot, "verification", Guid.NewGuid().ToString("N"), "中文 空格路径");
 Directory.CreateDirectory(testRoot);
 var extracted = Path.Combine(testRoot, "解压安装包");
-System.IO.Compression.ZipFile.ExtractToDirectory(Path.Combine(releaseRoot, "Pausewell-0.3.10-win-x64-install.zip"), extracted);
-var bundle = Path.Combine(extracted, "Pausewell-0.3.10-win-x64");
+System.IO.Compression.ZipFile.ExtractToDirectory(Path.Combine(releaseRoot, "Pausewell-0.4.0-win-x64-install.zip"), extracted);
+var bundle = Path.Combine(extracted, "Pausewell-0.4.0-win-x64");
 var helper = Path.Combine(bundle, "maintenance", "Pausewell.Maintenance.exe");
 var root = Path.Combine(testRoot, "程序");
 var data = Path.Combine(testRoot, "数据");
@@ -73,7 +73,7 @@ try
     // Cross-version v0.3.9 evidence belongs to the historical beta baseline.
     var previousApp = publishedApp;
     File.Copy(previousApp, Path.Combine(root, "Pausewell.exe"), true);
-    var oldManifest = JsonNode.Parse(manifest.ToJsonString())!; oldManifest["version"] = "0.3.10";
+    var oldManifest = JsonNode.Parse(manifest.ToJsonString())!; oldManifest["version"] = "0.4.0";
     foreach (var entry in oldManifest["files"]!.AsArray()) if (entry!["path"]!.GetValue<string>() == "Pausewell.exe") entry["sha256"] = Hash(previousApp);
     File.WriteAllText(Path.Combine(root, "pausewell-package.json"), oldManifest.ToJsonString());
     var upgrade = Manage("install");
@@ -86,6 +86,15 @@ try
     var rollback = Manage("rollback", upgradeBackup);
     Check("Program rollback restores exact allowlisted backed-up executable", rollback.Code == 0 && Hash(Path.Combine(root, "Pausewell.exe")) == Hash(previousApp));
     Check("Program rollback keeps latest new execution record", State() == withNewRecord);
+    var legacyBackup = Path.Combine(data,"backups","legacy-schema-guard");Directory.CreateDirectory(legacyBackup);
+    File.Copy(Path.Combine(root,"Pausewell.exe"),Path.Combine(legacyBackup,"Pausewell.exe"));
+    File.WriteAllText(Path.Combine(legacyBackup,"program.json"),JsonSerializer.Serialize(new {version="0.3.10",sha256=Hash(Path.Combine(root,"Pausewell.exe"))}));
+    var ownedManifestPath=Path.Combine(root,"pausewell-package.json");var ownedManifestText=File.ReadAllText(ownedManifestPath);
+    var legacyAllowlist=JsonNode.Parse(ownedManifestText)!;(legacyAllowlist["compatiblePrograms"]??legacyAllowlist["CompatiblePrograms"])!.AsArray().Add(new JsonObject { ["version"]="0.3.10",["sha256"]=Hash(Path.Combine(root,"Pausewell.exe")) });
+    File.WriteAllText(ownedManifestPath,legacyAllowlist.ToJsonString());
+    var blockedRollback=Manage("rollback",legacyBackup);
+    Check("Schema 4 blocks an otherwise allowlisted legacy rollback and keeps latest data",blockedRollback.Code!=0&&blockedRollback.Error.Contains("v0.4")&&State()==withNewRecord);
+    File.WriteAllText(ownedManifestPath,ownedManifestText);
     Check("Rolled-back program can upgrade again", Manage("install").Code == 0 && State() == withNewRecord);
     var rejectedRestore = Manage("restore", Path.Combine(upgradeBackup, "pausewell.db"));
     Check("Data restore requires separate explicit confirmation", rejectedRestore.Code != 0 && State() == withNewRecord);
@@ -122,10 +131,12 @@ try
     File.WriteAllText(Path.Combine(root, "user-note.txt"), "keep");
     Check("Uninstall refuses unowned files instead of recursively deleting them", Manage("uninstall").Code != 0 && File.ReadAllText(Path.Combine(root, "user-note.txt")) == "keep");
     File.Delete(Path.Combine(root, "user-note.txt"));
+    var upgradeInput=Read();upgradeInput.SchemaVersion=3;Save(upgradeInput);
     app = new Process { StartInfo = new(Path.Combine(root, "Pausewell.exe")) { UseShellExecute = false } }; app.StartInfo.ArgumentList.Add("--data-dir"); app.StartInfo.ArgumentList.Add(data); app.Start();
     var deadline = DateTime.UtcNow.AddSeconds(30);
     while (DateTime.UtcNow < deadline && !app.HasExited) { app.Refresh(); if (app.MainWindowHandle != IntPtr.Zero) break; Thread.Sleep(100); }
     Check("Installed application opens as a real Windows window", !app.HasExited && app.MainWindowHandle != IntPtr.Zero);
+    Check("Installed v0.4 backs up schema 3 before migration and retains confirmed records",Read().SchemaVersion==4&&Read().Occurrences.Single(o=>o.Id=="record").Status==OccurrenceStatus.Completed&&Directory.GetFiles(data,"pausewell.db.before-schema4-*.db").Length==1);
     Check("Running application blocks upgrade without terminating it", Manage("install").Code != 0 && !app.HasExited);
     Check("Running application blocks uninstall without terminating it", Manage("uninstall").Code != 0 && !app.HasExited);
     Check("Running application blocks data restore", Manage("restore", manual, true).Code != 0 && !app.HasExited);
@@ -152,6 +163,6 @@ finally
 {
     // Only our own isolated test app may be stopped on failure, never another instance.
     if (app != null) { if (!app.HasExited && app.MainModule?.FileName == Path.Combine(root, "Pausewell.exe")) app.Kill(); app.Dispose(); }
-    File.WriteAllText(Path.Combine(releaseRoot, "deployment-test-results.json"), JsonSerializer.Serialize(new { success, startedAt = started, finishedAt = DateTimeOffset.UtcNow, testRoot, archiveSha256 = Hash(Path.Combine(releaseRoot, "Pausewell-0.3.10-win-x64-install.zip")), checks, realUserInstallTested = false }, new JsonSerializerOptions { WriteIndented = true }));
+    File.WriteAllText(Path.Combine(releaseRoot, "deployment-test-results.json"), JsonSerializer.Serialize(new { success, startedAt = started, finishedAt = DateTimeOffset.UtcNow, testRoot, archiveSha256 = Hash(Path.Combine(releaseRoot, "Pausewell-0.4.0-win-x64-install.zip")), checks, realUserInstallTested = false }, new JsonSerializerOptions { WriteIndented = true }));
 }
 return success ? 0 : 1;
